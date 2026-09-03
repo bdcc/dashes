@@ -800,7 +800,10 @@ export function createGeoBoard({ mount, labelLayer, data, onSelect, theme = 'day
     const ud = pick(e);
     if (!ud) return api.select(null);
     if (ud.co) return api.select({ type: 'company', id: ud.co.name });
-    return api.select({ type: 'island', id: ud.island.id });
+    /* region pick: same focus as the right-column list row — select + fly in.
+       (company/village picks stay select-only; dblclick flies there instead) */
+    api.select({ type: 'island', id: ud.island.id });
+    api.flyTo(ud.island.id);
   });
   renderer.domElement.addEventListener('dblclick', (e) => {
     const ud = pick(e);
@@ -979,6 +982,7 @@ export function createGeoBoard({ mount, labelLayer, data, onSelect, theme = 'day
     islands, companies: data.companies, dates: data.dates, unplaced: data.unplaced,
     vessels,   // exposed for tests/scripts; chrome never touches it directly
     hqLines,   // exposed for tests/scripts; chrome never touches it directly
+    camera: cam,   // exposed for tests/scripts; chrome never touches it directly
     get state() { return { ...state }; },
     snapshot: (name, di = state.dateIndex) => snapAt(byName.get(name), di),
     setDate(i) { state.dateIndex = clamp(i, 0, data.dates.length - 1); applyDate(); },
