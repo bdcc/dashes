@@ -102,7 +102,7 @@ export function createGeoBoard({ mount, labelLayer, data, onSelect, theme = 'day
     dateIndex: data.dates.length - 1,
     selected: null,           // { type:'company'|'island', id }
     touched: false, idle: performance.now(),
-    fnFilter: null,           // function keys (multi-select) — dim everything that hires none of them
+    fnFilter: null,           // function keys (multi-select) — desaturate everything that hires none of them
     hqLines: false,           // water-island panel: lines from stations to each company's HQ
   };
 
@@ -708,7 +708,7 @@ export function createGeoBoard({ mount, labelLayer, data, onSelect, theme = 'day
     const f = state.fnFilter;
     hqLines.children.forEach((m) => {
       restoreGroup(m);
-      if (f && !(m.userData.co && fnMatch(m.userData.co))) dimGroup(m);
+      if (f && !(m.userData.co && fnMatch(m.userData.co))) desatGroup(m);
     });
   }
 
@@ -743,18 +743,20 @@ export function createGeoBoard({ mount, labelLayer, data, onSelect, theme = 'day
   function islandHasFn(is) {
     return is.companies.some((e) => fnMatch(e.co));
   }
-  const FN_DIM = 0.3;
-  const MATCH_BOOST = 1.12;   // matching village caps lift above base so soloing highlights
-  const MATCH_BOOST_LAND = 1.05;
+  /** luminance gray of a stored color — solo desaturates instead of darkening */
+  const grayOf = (c) => c.r * 0.2126 + c.g * 0.7152 + c.b * 0.0722;
+  const gray = (c) => { const l = grayOf(c); return new THREE.Color().setRGB(l, l, l); };
   const rememberBase = (g) => { if (!g) return; g.traverse((o) => { const m = o.material; if (!m) return; if (!m.userData) m.userData = {}; if (!m.userData.base) m.userData.base = m.color.clone(); }); };
   const restoreGroup = (g) => { rememberBase(g); if (!g) return; g.traverse((o) => { const m = o.material; if (m && m.userData.base) m.color.copy(m.userData.base); }); };
-  const dimGroup = (g) => { if (!g) return; g.traverse((o) => { const m = o.material; if (m && m.userData.base) m.color.copy(m.userData.base).multiplyScalar(FN_DIM); }); };
+  const desatGroup = (g) => { if (!g) return; g.traverse((o) => { const m = o.material; if (m && m.userData.base) m.color.copy(gray(m.userData.base)); }); };
 
   /**
-   * fn-filter state: restore every mesh to its themed base color, then dim
-   * what the filter drops — companies that don't hire the function, and the
-   * empty land around islands that have nothing to do with it. Non-matching
-   * land goes darkest so matching villages read as islands of light.
+   * fn-filter state: restore every mesh to its themed base color, then
+   * DESATURATE what the filter drops — companies that don't hire the function
+   * and land around islands that have nothing to do with it. Matching cells
+   * keep their exact color (full saturation); everything else goes gray at its
+   * own luminance so map relief stays readable. Clearing the filter restores
+   * every cell to its exact base color.
    */
   function applyFnDim() {
     const f = state.fnFilter;
@@ -772,25 +774,20 @@ export function createGeoBoard({ mount, labelLayer, data, onSelect, theme = 'day
     hqLines.children.forEach((m) => restoreGroup(m));
     if (!f) return;
     tileRecs.forEach((rec) => {
-      const dim = rec.co ? !fnMatch(rec.co) : !islandHasFn(rec.island);
-      if (dim) {
-        rec.cap.material.color.multiplyScalar(FN_DIM);
-        rec.side.material.color.multiplyScalar(FN_DIM);
+      const drop = rec.co ? !fnMatch(rec.co) : !islandHasFn(rec.island);
+      if (drop) {
+        const cu = rec.cap.material.userData, su = rec.side.material.userData;
+        rec.cap.material.color.copy(gray(cu.baseColor ? cu.baseColor : new THREE.Color(rec.baseTint)));
+        rec.side.material.color.copy(gray(su.baseColor ? su.baseColor : new THREE.Color(THEME[state.theme].side)));
       }
     });
-    builds.children.forEach((g) => { if (g.userData.co && !fnMatch(g.userData.co)) dimGroup(g); });
+    builds.children.forEach((g) => { if (g.userData.co && !fnMatch(g.userData.co)) desatGroup(g); });
     data.companies.forEach((co) => {
       if (fnMatch(co)) return;
-      co.villages.forEach((v) => dimGroup(v.flag ? v.flag.g : null));
-      (co.stations || []).forEach((v) => dimGroup(v.g));
+      co.villages.forEach((v) => desatGroup(v.flag ? v.flag.g : null));
+      (co.stations || []).forEach((v) => desatGroup(v.g));
     });
-    hqLines.children.forEach((m) => { if (!(m.userData.co && fnMatch(m.userData.co))) dimGroup(m); });
-    // then lift the matching caps back up so soloing reads as highlight, not
-    // grayout — islands of full-color land on dimmed ground
-    tileRecs.forEach((rec) => {
-      if (rec.co && fnMatch(rec.co)) rec.cap.material.color.multiplyScalar(MATCH_BOOST);
-      else if (!rec.co && islandHasFn(rec.island)) rec.cap.material.color.multiplyScalar(MATCH_BOOST_LAND);
-    });
+    hqLines.children.forEach((m) => { if (!(m.userData.co && fnMatch(m.userData.co))) desatGroup(m); });
   }
 
   // ----------------------------------------------------------------- picking
