@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<!--
+  a16z static boards — launcher.
+  Two boards, fully static, data loads from this folder:
+    · Roles Flow  — the sankey / flow diagram over a16z portfolio roles
+    · Tiny World  — 3D cartogram: one island per job center
+  Each loads JSON by default; add ?data=sqlite for the demo.db (sql.js) path.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>a16z static boards</title>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,600;1,400&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper:#fff2ee; --panel:#fff; --rule:#f2d9d2; --ink:#0d0d0d; --muted:#5c5350; --faint:#6b615d;
+    --accent:#fb5b60; --chip-bg:#ffe0e8; --chip-bd:#ffa6bf;
+  }
+  * { box-sizing:border-box; }
+  html, body { margin:0; min-height:100%; background:var(--paper); color:var(--ink); font-family:Karla, sans-serif; }
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { color:var(--ink); }
+  .wrap { max-width:860px; margin:0 auto; padding:48px 24px 64px; }
+  .title { font-family:Spectral, serif; font-size:34px; font-weight:600; letter-spacing:-0.02em; }
+  .sub { font-size:15px; color:var(--muted); line-height:1.5; margin-top:6px; }
+  .cards { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:36px; }
+  @media (max-width:700px) { .cards { grid-template-columns:1fr; } }
+  .card { display:flex; flex-direction:column; gap:14px; background:var(--panel); border:1px solid var(--rule); border-radius:14px; padding:24px; }
+  .card:hover { border-color:var(--chip-bd); }
+  .card .icon { font-size:30px; }
+  .card .name { font-family:Spectral, serif; font-size:22px; font-weight:600; }
+  .card .desc { font-size:13px; color:var(--muted); line-height:1.5; flex:1; }
+  .card .open { display:inline-block; font-size:13px; font-weight:700; background:var(--accent); color:#fff; border-radius:999px; padding:9px 18px; }
+  .card .alt { display:inline-block; font-size:12px; color:var(--faint); margin-top:4px; }
+  .card .alt:hover { color:var(--ink); }
+  .note { font-size:11px; color:var(--faint); line-height:1.6; margin-top:36px; max-width:640px; }
+  code { font-family:ui-monospace, Menlo, Consolas, monospace; font-size:11px; background:#fff; border:1px solid var(--rule); border-radius:4px; padding:1px 5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="title">a16z static boards</div>
+  <div class="sub">Two views over public a16z portfolio career data — fully static, served from this folder.</div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="icon">🔀</div>
+      <div class="name">Roles Flow</div>
+      <div class="desc">The flow diagram: roles through functions, companies, cities and over time. The full board — every tracked portfolio company, current as of the last data refresh.</div>
+      <div><a class="open" href="flow/">Open Roles Flow</a></div>
+      <div><a class="alt" href="flow/?data=sqlite">open with SQLite (demo.db)</a></div>
+    </div>
+    <div class="card">
+      <div class="icon">🌍</div>
+      <div class="name">Tiny World</div>
+      <div class="desc">A 3D cartogram — one island per job center, sized by open roles. Speedrun cohort. Each company is a village of function buildings; click one for its live open roles, each linking to the job page. Day and night, terrain, a 20-scan scrubber.</div>
+      <div><a class="open" href="world/">Open Tiny World</a></div>
+      <div><a class="alt" href="world/?data=sqlite">open with SQLite (demo.db)</a></div>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>Keep it current</b> — regenerate on the VM and push:<br>
+    <code>python cli.py a16z snapshot && python scripts/export_static_board.py</code> writes <code>flow/data.json</code>, <code>world/data.json</code> and <code>demo/demo.db</code>, then <code>git add . && git commit && git push</code>.<br><br>
+    All data here is <b>public-board aggregates</b> (a16z portfolio snapshots and roles from public career APIs). No applications, no personal data. Host it anywhere static: GitHub Pages, Netlify, a folder on your site. Needs an http server (ES modules) — <code>python -m http.server 8071</code> works locally.
+  </div>
+</div>
+</body>
+</html>

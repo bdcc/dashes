@@ -1,0 +1,1552 @@
+<!doctype html>
+<html lang="en" data-theme="paper">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Startup Roles Flow</title>
+<link rel="stylesheet" href="theme.css">
+<style>
+/* ============================================================
+   App shell — layout only, all colors token-driven (no hex).
+   Theme values live in theme.css; SVG builders resolve via
+   RolesFlowTheme.theme().
+   ============================================================ */
+
+/* ---- desktop facet heads: 11px floor per acceptance check ---- */
+#d-facets .eyebrow { font-size: 11px; }
+
+/* ---- collapsible facet groups ---- */
+.fold-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 0; background: none; border: 0; cursor: pointer; color: inherit; font: inherit;
+}
+.fold-btn .caret { font-size: 11px; line-height: 1; color: var(--faint); }
+.fold-btn:hover .caret { color: var(--muted); }
+.facet.folded .facet-rows, .sgroup.folded .srows { display: none; }
+
+/* ---- shared rows / ranges ---- */
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.row .section { margin-right: auto; }
+.main section + section { margin-top: 26px; }
+.mt { margin-top: 26px; }
+
+/* ---- pair-mode company pick dropdowns (A + B) ---- */
+.copicks { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.co-drop { position: relative; }
+.co-btn {
+  display: inline-flex; align-items: center; gap: 7px; max-width: 200px;
+  font-size: 12px; font-weight: 600; padding: 5px 10px;
+  border: 1px solid var(--chip-bd); border-radius: var(--radius);
+  background: var(--chip-bg); color: var(--ink); cursor: pointer;
+}
+.co-btn:hover { border-color: var(--accent); }
+.co-btn i { width: 8px; height: 8px; border-radius: 4px; flex: none; }
+.co-btn .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.co-btn .ca { color: var(--faint); font-size: 9px; }
+.co-drop.open .co-btn { border-color: var(--accent); color: var(--accent); }
+.copop {
+  position: absolute; top: calc(100% + 5px); left: 0; z-index: 50;
+  width: 270px; max-height: 330px;
+  display: flex; flex-direction: column;
+  background: var(--panel); border: 1px solid var(--rule); border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+.co-search {
+  margin: 8px; padding: 7px 10px; font-size: 13px; flex: none;
+  background: var(--paper); border: 1px solid var(--rule); border-radius: 7px; color: var(--ink);
+}
+.co-search:focus { outline: none; border-color: var(--accent); }
+.corows { overflow-y: auto; padding-bottom: 6px; }
+.co-row {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 6px 12px; border: none; background: transparent;
+  text-align: left; cursor: pointer; font-size: 13px; color: var(--ink);
+}
+.co-row:hover { background: var(--paper); }
+.co-row .cnt { margin-left: auto; font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.co-row.on { background: var(--chip-bg); color: var(--accent); font-weight: 600; }
+.co-row.dim { opacity: 0.4; cursor: not-allowed; }
+.co-none { padding: 12px; font-size: 12px; color: var(--faint); }
+.hint { margin: 6px 0 8px; line-height: 1.6; }
+.range { margin-top: 10px; }
+.range .fig { font-size: 14px; }
+.range .sub { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 6px; align-items: center; }
+.pills .link-danger { margin-left: 2px; }
+.hscroll { display: flex; gap: 8px; overflow-x: auto; }
+
+/* ---- desktop chart switch / ridge scale ---- */
+#d-chart-switch { margin-left: auto; }
+.ridgeseg { display: flex; gap: 3px; }
+.ridgeseg button {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+  padding: 3px 10px; border: 1px solid var(--rule); border-radius: var(--radius);
+  background: transparent; color: var(--muted); cursor: pointer;
+}
+.ridgeseg button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+
+/* ---- preferences picker (shared overlay) ---- */
+.gear {
+  font-size: 15px; line-height: 1; padding: 5px 10px;
+  border: 1px solid var(--rule); border-radius: var(--radius);
+  background: transparent; color: var(--muted); cursor: pointer;
+}
+.gear:hover { color: var(--ink); border-color: var(--chip-bd); }
+.prefs-ovl {
+  position: fixed; inset: 0; z-index: 80;
+  background: var(--dim); display: flex; align-items: center; justify-content: center;
+}
+.prefs-card {
+  width: 360px; max-width: calc(100vw - 40px); max-height: 80vh; overflow-y: auto;
+  background: var(--panel); border: 1px solid var(--rule); border-radius: 12px;
+  padding: 18px 20px 16px;
+}
+.prefs-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 14px; }
+.prefs-head h3 { font-family: var(--font-display); font-size: 19px; font-weight: 400; }
+.prefs-head .sub { margin-top: 3px; font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+.prefs-x { margin-left: auto; flex: none; min-height: 32px; padding: 0 10px; border: none;
+  background: none; color: var(--muted); font-size: 15px; cursor: pointer; }
+.prefs-rows { display: flex; flex-direction: column; margin-bottom: 14px; }
+.prefs-row { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px;
+  padding: 0 4px; border: none; border-bottom: 1px solid var(--rule);
+  background: transparent; text-align: left; cursor: pointer; }
+.prefs-row:last-child { border-bottom: none; }
+.prefs-row .box { width: 18px; height: 18px; flex: none; border-radius: 4px;
+  border: 1.5px solid var(--chip-bd); display: inline-flex; align-items: center;
+  justify-content: center; font-size: 13px; color: var(--accent-fg); }
+.prefs-row.on .box { background: var(--accent); border-color: var(--accent); }
+.prefs-row .name { flex: 1; font-size: 15px; color: var(--ink); }
+.prefs-row.on .name { font-weight: 700; color: var(--accent); }
+.prefs-row .sub { font-size: 12px; color: var(--faint); }
+.prefs-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.prefs-actions .btn-done { min-height: 40px; padding: 0 20px; border: 1px solid var(--accent);
+  border-radius: 20px; background: var(--accent); color: var(--accent-fg);
+  font-size: 14px; font-weight: 700; cursor: pointer; }
+
+/* ---- mobile shell ---- */
+.mob { display: none; }
+
+@media (max-width: 719px) {
+  .desk { display: none; }
+  .mob { display: block; }
+
+  .mh {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px 10px;
+    background: var(--paper); border-bottom: 1px solid var(--rule);
+  }
+  .mh h1 { font-family: var(--font-display); font-size: 20px; font-weight: 400; line-height: 1.15; }
+  .mh .sub { margin-top: 3px; font-size: 12.5px; color: var(--muted); }
+  .scope-btn {
+    margin-left: auto; flex: none;
+    min-height: 44px; padding: 0 16px;
+    border: 1px solid var(--rule); border-radius: 22px;
+    background: transparent; color: var(--muted);
+    font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .scope-btn.on { background: var(--chip-bg); border-color: var(--chip-bd); color: var(--accent); }
+
+  .mstats {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+    background: var(--rule);
+  }
+  .mstat { background: var(--paper); padding: 10px 16px 12px; }
+  .mstat .eyebrow { font-size: 10px; display: block; margin-bottom: 3px; }
+  .mstat .fig { font-size: 24px; line-height: 1.2; display: block; }
+
+  .mcontent {
+    max-width: 480px; margin: 0 auto;
+    padding: 12px 16px calc(40px + env(safe-area-inset-bottom));
+  }
+  .mcontent section + section { margin-top: 24px; }
+
+  .preset {
+    flex: none; min-height: 44px; padding: 0 18px;
+    border: 1px solid var(--rule); border-radius: 22px;
+    background: transparent; color: var(--muted);
+    font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .preset.on { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+  .mtabs { padding: 2px 0 4px; }
+  .mcontent .picker { max-width: none; min-height: 44px; font-size: 15px; padding: 0 12px; border-radius: 8px; }
+  .mcontent .byrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 0 10px; border-bottom: 1px solid var(--rule); margin-bottom: 8px; }
+  .co-btn { min-height: 40px; font-size: 13px; max-width: 46vw; }
+  .copop {
+    position: fixed; left: 12px; right: 12px; bottom: 0; width: auto;
+    max-height: 55vh; border-radius: 14px 14px 0 0;
+    padding-bottom: calc(6px + env(safe-area-inset-bottom));
+  }
+  .co-search { min-height: 42px; font-size: 15px; }
+  .co-row { min-height: 42px; font-size: 14.5px; }
+
+  .mtitle-row { display: flex; align-items: center; gap: 4px; margin-top: 4px; }
+  .mtitle-row h2 { font-family: var(--font-display); font-size: 16px; font-weight: 400; flex: 1; min-width: 0; }
+  .dot { width: 44px; height: 44px; flex: none; padding: 0; border: none; background: none; cursor: pointer;
+         display: inline-flex; align-items: center; justify-content: center; }
+  .dot span { width: 8px; height: 8px; border-radius: 4px; background: var(--chip-bd); display: block; }
+  .dot.on span { width: 22px; background: var(--accent); }
+
+  .deck { overflow: hidden; transition: height .3s cubic-bezier(.22, .61, .36, 1); }
+  .track { display: flex; align-items: flex-start; width: 300%; touch-action: pan-y; }
+  .panel { width: 33.3333%; flex: none; padding: 0 16px; }
+
+  .mlegend { display: flex; gap: 16px; padding: 10px 0 2px; font-size: 12.5px; color: var(--muted); align-items: center; }
+  .mlegend i { width: 14px; height: 8px; display: inline-block; opacity: 0.6; flex: none; }
+
+  .card {
+    margin: 18px 16px 0; background: var(--panel);
+    border: 1px solid var(--rule); border-radius: 12px; padding: 14px;
+  }
+  .card .ctitle { display: flex; align-items: center; gap: 10px; }
+  .card .ctitle .name { font-family: var(--font-display); font-size: 17px; flex: 1; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .close-pill { flex: none; min-height: 36px; padding: 0 12px; border: 1px solid var(--rule);
+    border-radius: 18px; background: none; color: var(--muted); font-size: 13px; cursor: pointer; }
+  .card .cfig { display: flex; align-items: baseline; gap: 8px; padding: 10px 0 12px;
+    border-bottom: 1px solid var(--rule); margin-bottom: 12px; }
+  .card .cfig .v { font-family: var(--font-display); font-size: 30px; line-height: 1; font-variant-numeric: tabular-nums; }
+  .card .cfig .lab { font-size: 13px; color: var(--muted); }
+  .card .cfig .delta { margin-left: auto; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .card .ceyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); margin-bottom: 6px; }
+  .crows { display: flex; flex-direction: column; }
+  .crow { position: relative; display: flex; align-items: center; gap: 8px; min-height: 40px;
+    padding: 0 6px; overflow: hidden; border-bottom: 1px solid var(--rule); }
+  .crow .bar { position: absolute; left: 0; top: 0; bottom: 0; background: var(--bar); }
+  .crow .name { position: relative; flex: 1; min-width: 0; font-size: 14.5px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .crow .cnt { position: relative; font-size: 14px; font-variant-numeric: tabular-nums; color: var(--muted); }
+  .crow .delta { position: relative; font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; width: 34px; text-align: right; }
+  .card .cnote { margin: 10px 0 0; font-size: 12.5px; color: var(--faint); line-height: 1.6; }
+
+  .table-head, .trow { display: grid; grid-template-columns: 1fr 40px 40px 48px; gap: 0 6px; align-items: center; }
+  .table-head { padding: 0 0 6px; border-bottom: 1px solid var(--rule); font-size: 10px; font-weight: 700;
+    letter-spacing: 0.09em; text-transform: uppercase; color: var(--faint); }
+  .table-head span:nth-child(n+2) { text-align: right; }
+  .trow { width: 100%; min-height: 46px; padding: 0; border: none; border-bottom: 1px solid var(--rule);
+    background: transparent; text-align: left; cursor: pointer; }
+  .trow.pinned { background: var(--chip-bg); }
+  .trow .lab { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .trow .lab i { width: 4px; height: 20px; border-radius: 2px; flex: none; display: block; }
+  .trow .lab span { font-size: 14.5px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .trow .n { font-size: 14px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+  .trow .n.ink { color: var(--ink); }
+  .trow .chg { font-size: 14px; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+  .table-note { margin: 10px 0 0; font-size: 12.5px; color: var(--faint); }
+
+  .sheet { position: fixed; inset: 0; z-index: 60; background: var(--paper); display: flex; flex-direction: column; }
+  .shead { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--rule); }
+  .shead .stitle { font-family: var(--font-display); font-size: 19px; }
+  .sreset { margin-left: auto; min-height: 40px; padding: 0 12px; border: none; background: none;
+    color: var(--down); font-size: 14px; cursor: pointer; }
+  .sdone { min-height: 44px; padding: 0 20px; border: 1px solid var(--accent); border-radius: 22px;
+    background: var(--accent); color: var(--accent-fg); font-size: 15px; font-weight: 700; cursor: pointer; }
+  .sbody { flex: 1; overflow-y: auto; padding: 14px 16px calc(40px + env(safe-area-inset-bottom)); }
+  .ssearch { width: 100%; min-height: 46px; background: var(--panel); border: 1px solid var(--rule);
+    border-radius: 8px; color: var(--ink); font-size: 16px; padding: 0 12px; margin-bottom: 8px; }
+  .ssummary { margin: 0 0 16px; font-size: 12.5px; color: var(--faint); }
+  .sgroup { margin-bottom: 22px; }
+  .shead-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
+  .shead-row .eyebrow { font-size: 10px; }
+  .sclear { min-height: 32px; padding: 0 4px; background: none; border: none; color: var(--down); font-size: 13px; cursor: pointer; }
+  .srows { display: flex; flex-direction: column; }
+  .srow { position: relative; display: flex; align-items: center; gap: 10px; width: 100%;
+    min-height: 46px; padding: 0 8px; border: none; border-bottom: 1px solid var(--rule);
+    background: transparent; text-align: left; cursor: pointer; overflow: hidden; }
+  .srow .bar { position: absolute; left: 0; top: 0; bottom: 0; background: var(--bar); }
+  .srow .box { position: relative; width: 18px; height: 18px; flex: none; border-radius: 4px;
+    border: 1.5px solid var(--chip-bd); background: transparent; }
+  .srow.on .box { background: var(--accent); border-color: var(--accent); }
+  .srow .name { position: relative; flex: 1; min-width: 0; font-size: 15px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .srow.on .name { font-weight: 700; color: var(--accent); }
+  .srow .cnt { position: relative; font-size: 14px; color: var(--faint); font-variant-numeric: tabular-nums; }
+  .smore { min-height: 40px; padding: 0; margin-top: 4px; background: none; border: none;
+    color: var(--muted); font-size: 14px; text-decoration: underline; cursor: pointer; }
+  .ssegs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  .sseg { min-height: 44px; padding: 0 16px; border: 1px solid var(--rule); border-radius: 22px;
+    background: transparent; color: var(--muted); font-size: 14px; font-weight: 600; cursor: pointer; }
+  .sseg.on { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+
+  .mcontent .provenance { font-size: 12px; line-height: 1.65; }
+
+  .sprefs { min-height: 40px; padding: 0 12px; border: none; background: none;
+    color: var(--muted); font-size: 14px; cursor: pointer; }
+  .sprefs:active { color: var(--ink); }
+  .prefs-ovl { align-items: flex-end; }
+  .prefs-card { width: 100%; max-width: none; border-radius: 16px 16px 0 0;
+    max-height: 70vh; padding-bottom: calc(18px + env(safe-area-inset-bottom)); }
+}
+</style>
+</head>
+<body>
+
+<!-- ================= DESKTOP SHELL ================= -->
+<div class="desk" id="desk">
+  <header class="app-header">
+    <div>
+      <h1>Startup Roles Flow</h1>
+      <div class="sub">Where tracked startup portfolios are adding and cutting roles, between any two scan dates.</div>
+    </div>
+    <div class="stats">
+      <div class="stat">
+        <div class="eyebrow">In scope</div>
+        <div class="v fig" id="d-stat-scope">&ndash;</div>
+      </div>
+      <div class="stat">
+        <div class="eyebrow">Open roles</div>
+        <div class="v fig" id="d-stat-now">&ndash;</div>
+      </div>
+      <div class="stat">
+        <div class="eyebrow">Net in window</div>
+        <div class="v fig" id="d-stat-net">&ndash;</div>
+      </div>
+      <div id="d-theme"></div>
+      <button type="button" class="gear" id="d-prefs" title="Which facet groups to show in the left nav" aria-label="Preferences">⚙</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="rail rail-left">
+      <h2 class="section">Scope</h2>
+      <input class="search" id="d-search" placeholder="Find a company" autocomplete="off">
+      <div class="pills" id="d-pills"></div>
+      <div id="d-facets"></div>
+    </aside>
+
+    <main class="main">
+      <section>
+        <div class="row">
+          <h2 class="section">Open roles over time</h2>
+          <div class="seg" id="d-presets"></div>
+        </div>
+        <p class="hint">Drag the shaded window, or its edges, to set the two dates being compared below.</p>
+        <div id="d-timeline"></div>
+        <div class="range" id="d-range"></div>
+      </section>
+
+      <section>
+        <div class="row">
+          <h2 class="section" id="d-chart-head">What changed by role type</h2>
+          <div class="seg" id="d-chart-switch"></div>
+          <div class="ridgeseg" id="d-ridgeseg"></div>
+        </div>
+        <div class="byrow row" style="padding:8px 0 10px;border-bottom:1px solid var(--rule);margin-bottom:6px;">
+          <span class="eyebrow">Break down by</span>
+          <div class="seg" id="d-tabs"></div>
+          <select class="picker" id="d-picker" style="display:none"></select>
+          <div class="copicks" id="d-copicks"></div>
+        </div>
+        <p class="hint" id="d-hint"></p>
+        <div id="d-chart"></div>
+        <div class="legend" id="d-legend" style="margin-top:8px"></div>
+      </section>
+
+      <footer class="provenance" id="d-prov"></footer>
+    </main>
+
+    <aside class="rail rail-right">
+      <div class="row" style="margin-bottom:10px;">
+        <h2 class="section" id="d-det-title">Detail</h2>
+        <button class="link-danger" id="d-unpin" style="display:none">unpin</button>
+      </div>
+      <div id="d-detail"></div>
+    </aside>
+  </div>
+</div>
+
+<!-- ================= MOBILE SHELL ================= -->
+<div class="mob" id="mob">
+  <header class="mh">
+    <div>
+      <h1>Startup Roles Flow</h1>
+      <div class="sub" id="m-sub">&hellip;</div>
+    </div>
+    <button class="scope-btn" id="m-scope-btn">Scope</button>
+  </header>
+
+  <div class="mstats">
+    <div class="mstat"><span class="eyebrow">In scope</span><span class="fig" id="m-s1">&ndash;</span></div>
+    <div class="mstat"><span class="eyebrow">Open roles</span><span class="fig" id="m-s2">&ndash;</span></div>
+    <div class="mstat"><span class="eyebrow">Net change</span><span class="fig" id="m-s3">&ndash;</span></div>
+  </div>
+
+  <main class="mcontent">
+    <section>
+      <h2 class="section">Open roles over time</h2>
+      <div class="hscroll" id="m-presets" style="padding:8px 0 10px"></div>
+      <div id="m-timeline"></div>
+      <div class="range" id="m-range"></div>
+      <div class="byrow">
+        <span class="eyebrow" style="font-size:10px">Break down by</span>
+        <div class="hscroll mtabs" id="m-tabs"></div>
+        <select class="picker" id="m-picker" style="display:none"></select>
+        <div class="copicks" id="m-copicks"></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="mtitle-row">
+        <h2 id="m-title">Flow</h2>
+        <div id="m-dots"></div>
+      </div>
+      <p class="hint" id="m-hint"></p>
+      <div class="deck" id="m-deck">
+        <div class="track" id="m-track">
+          <div class="panel" id="m-p0"></div>
+          <div class="panel" id="m-p1"></div>
+          <div class="panel" id="m-p2"></div>
+        </div>
+      </div>
+      <div class="mlegend hscroll" id="m-legend"></div>
+    </section>
+
+    <section class="card" id="m-card" style="display:none"></section>
+
+    <footer class="provenance" id="m-prov"></footer>
+  </main>
+
+  <div class="sheet" id="m-sheet" style="display:none">
+    <div class="shead">
+      <span class="stitle">Scope</span>
+      <button type="button" class="sprefs" id="m-prefs">Prefs</button>
+      <button class="sreset" id="m-reset">Reset</button>
+      <button class="sdone" id="m-done">Done</button>
+    </div>
+    <div class="sbody">
+      <input class="ssearch" id="m-search" placeholder="Find a company" autocomplete="off">
+      <p class="ssummary" id="m-summary"></p>
+      <div class="ssegs" id="m-ssegs"></div>
+      <div id="m-facets"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= PREFERENCES PICKER (shared) ================= -->
+<div class="prefs-ovl" id="prefs" style="display:none" role="dialog" aria-modal="true" aria-label="Preferences">
+  <div class="prefs-card">
+    <div class="prefs-head">
+      <div>
+        <h3>Preferences</h3>
+        <p class="sub">Which facet groups show in the left nav.</p>
+      </div>
+      <button type="button" class="prefs-x" id="prefs-close" aria-label="Close">✕</button>
+    </div>
+    <div class="prefs-rows" id="prefs-rows"></div>
+    <div class="prefs-actions">
+      <button type="button" class="link-danger" id="prefs-reset">Reset to defaults</button>
+      <button type="button" class="btn-done" id="prefs-done">Done</button>
+    </div>
+  </div>
+</div>
+
+<script src="theme.js"></script>
+<script>
+(function () {
+'use strict';
+
+/* ---------- helpers ---------- */
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const FUNCTIONS = ['engineering','product','design','research','sales','marketing','operations','other'];
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const fmtDate = s => { const p = String(s).split('-'); return MON[+p[1] - 1] + ' ' + (+p[2]); };
+const fmtTime = s => { const p = String(s || '').slice(0, 16).replace('T', ' '); return p ? p + ' UTC' : ''; };
+const signed = n => (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(n);
+const trunc = (s, n) => s.length > n ? s.slice(0, n - 1) + '…' : s;
+const isMobile = () => matchMedia('(max-width: 719px)').matches;
+const ridgeScale = () => S.ridgeScale || (S.compare === 'pair' ? 'shared' : (isMobile() ? 'perband' : 'shared'));
+const savePicked = () => { try { localStorage.setItem('rolesFlow.picked', JSON.stringify(S.picked)); } catch (err) {} };
+const savePair = () => { try { localStorage.setItem('rolesFlow.pair', JSON.stringify(S.pair)); } catch (err) {} };
+
+/* ---------- pair-mode company dropdowns (A + B) ---------- */
+function coDropRows(q) {
+  const d = S.data;
+  if (!d || S.coDrop === null) return '';
+  const other = (S.pair || [])[S.coDrop === 0 ? 1 : 0] || '';
+  const s = String(q || '').trim().toLowerCase();
+  return d.companies.slice().sort((a, b) => b.total_jobs - a.total_jobs)
+    .filter(c => !s || c.company.toLowerCase().includes(s))
+    .map(c => {
+      const dim = c.company === other;   // already picked on the other side — no dupes
+      return '<button type="button" class="co-row' + (c.company === (S.pair || [])[S.coDrop] ? ' on' : '') + (dim ? ' dim' : '') + '"'
+        + ' data-copick="1" data-slot="' + S.coDrop + '" data-name="' + esc(c.company) + '"' + (dim ? ' disabled' : '')
+        + '><span class="nm">' + esc(c.company) + '</span><span class="cnt">' + (c.total_jobs || 0) + '</span></button>';
+    }).join('');
+}
+function coDropHTML(slot) {
+  const name = (S.pair || [])[slot] || '';
+  const open = S.coDrop === slot;
+  const col = slot === 0 ? 'var(--pair-a)' : 'var(--pair-b)';
+  const rows = open ? coDropRows(S.coQ) : '';
+  return '<div class="co-drop' + (open ? ' open' : '') + '">'
+    + '<button type="button" class="co-btn" data-codrop="' + slot + '" aria-expanded="' + open + '" title="Pick company ' + (slot === 0 ? 'A' : 'B') + '">'
+    + '<i style="background:' + col + '"></i><span class="nm">' + (name ? esc(name) : 'Choose company') + '</span><span class="ca">▾</span></button>'
+    + (open
+      ? '<div class="copop"><input class="co-search" data-cosearch="' + slot + '" placeholder="Find a company" autocomplete="off" value="' + esc(S.coQ) + '">'
+        + '<div class="corows">' + (rows || '<div class="co-none">No companies match</div>') + '</div></div>'
+      : '')
+    + '</div>';
+}
+function closeCoDrop() {
+  S.coDrop = null; S.coQ = '';
+}
+
+/* ---------- state ---------- */
+const S = {
+  data: null, err: null, from: 0, to: 0, live: false,
+  compare: 'fn', chart: 'flow', focusCo: '',
+  query: '', picked: [], pair: [], facets: { cohort: [], sector: [], work: [], city: [], source: [] },
+  facetsVis: { __companies: true, cohort: true, sector: true, work: true, city: true, source: true },
+  expanded: {}, folded: {}, hover: null, pin: null,
+  ridgeScale: null, // null = default: shared (desktop) / per-band (mobile)
+  w: 700, wm: 358, panel: 0, dragX: 0, swiping: false, panelHs: [0, 0, 0],
+  filtersOpen: false,
+  coDrop: null, coQ: ''   // pair mode: which company dropdown is open (0|1|null) + its search text
+};
+
+/* ---------- data accessors ---------- */
+function asOf(c, date) { let v = 0; for (const h of c.history) { if (h.date <= date) v = h.total_jobs; else break; } return v; }
+function fnAsOf(c, date, fn) { let v = 0; for (const h of c.history) { if (h.date > date) break; v = (h.jobs_by_fn && h.jobs_by_fn[fn]) || 0; } return v; }
+function workModeOf(c) {
+  const r = c.total_jobs > 0 ? (c.remote_count || 0) / c.total_jobs : -1;
+  return r >= 0.8 ? 'Remote-first' : r > 0.2 ? 'Hybrid' : 'In-office';
+}
+function matches(c, skip) {
+  const f = S.facets;
+  if (skip !== 'cohort' && f.cohort.length && !f.cohort.includes(c.cohort)) return false;
+  if (skip !== 'source' && f.source.length && !f.source.includes(c.source)) return false;
+  if (skip !== 'sector' && f.sector.length && !f.sector.some(s => (c.industries || []).includes(s))) return false;
+  if (skip !== 'work' && f.work.length && !f.work.includes(workModeOf(c))) return false;
+  if (skip !== 'city' && f.city.length && !f.city.some(ci => (c.jobs_by_loc || {})[ci] > 0)) return false;
+  return true;
+}
+function scope() {
+  const d = S.data;
+  if (!d) return [];
+  if (S.compare === 'one') {
+    const c = d.companies.find(x => x.company === S.focusCo);
+    return c ? [c] : [];
+  }
+  if (S.compare === 'pair') {
+    const ns = (S.pair || []).slice(0, 2);
+    return ns.map(n => d.companies.find(c => c.company === n)).filter(Boolean);
+  }
+  let list = d.companies.filter(c => matches(c));
+  if (S.picked.length) list = list.filter(c => S.picked.includes(c.company));
+  return list;
+}
+const byFunction = () => S.compare !== 'co';
+function filterCount() {
+  const f = S.facets;
+  return f.cohort.length + f.sector.length + f.work.length + f.city.length + f.source.length + S.picked.length;
+}
+function series(cap) {
+  const d = S.data, dates = d.dates, t = RolesFlowTheme.theme(), sc = scope();
+  let rows;
+  if (S.compare === 'pair') {
+    /* function × company bands, colored by company — 16 rows for two picks */
+    rows = sc.map((c, i) => FUNCTIONS.map(fn => ({ id: c.company + '|' + fn, label: fn + ' · ' + c.company,
+      color: i === 0 ? t.pairA : t.pairB,
+      vals: dates.map(dt => fnAsOf(c, dt, fn)) }))).flat();
+  } else if (byFunction()) {
+    rows = FUNCTIONS.map(fn => ({ id: fn, label: fn, color: t.fn[fn],
+      vals: dates.map(dt => sc.reduce((s, c) => s + fnAsOf(c, dt, fn), 0)) }));
+  } else {
+    rows = sc.map(c => ({ id: c.company, label: c.company, color: t.fn.engineering,
+      vals: dates.map(dt => asOf(c, dt)) }));
+  }
+  rows = rows.filter(r => r.vals.some(v => v > 0));
+  rows.forEach(r => { r.v0 = r.vals[S.from]; r.v1 = r.vals[S.to]; r.peak = Math.max.apply(null, r.vals); });
+  rows.sort((p, q) => q.v1 - p.v1 || q.peak - p.peak);
+  return cap ? rows.slice(0, cap) : rows;
+}
+
+/* ---------- timeline ---------- */
+function idxAt(clientX) {
+  const el = isMobile() ? $('#m-timeline') : $('#d-timeline');
+  if (!el) return 0;
+  const r = el.getBoundingClientRect();
+  const n = S.data.dates.length - 1;
+  if (isMobile()) {
+    const plot = Math.max(1, r.width - 42);
+    return clamp(Math.round((clientX - r.left - 14) * n / plot), 0, n);
+  }
+  const plot = Math.max(1, r.width - 46);
+  return clamp(Math.round((clientX - r.left - 12) * n / plot), 0, n);
+}
+function setRange(f, t) { S.from = f; S.to = Math.max(f, t); renderAll(); }
+
+function timelineSVG(mobile) {
+  const d = S.data, dates = d.dates, t = RolesFlowTheme.theme();
+  const W = mobile ? S.wm : S.w;
+  const sc = scope();
+  const vals = dates.map(dt => sc.reduce((s, c) => s + asOf(c, dt), 0));
+  const max = Math.max(1, ...vals);
+  const n = Math.max(1, dates.length - 1);
+  const plot = mobile ? W - 42 : W - 46;
+  const X = i => (mobile ? 14 : 12) + i / n * plot;
+  const Y = v => (mobile ? 96 : 92) - v / max * (mobile ? 72 : 74);
+  const x0 = X(S.from), x1 = X(S.to);
+  const H = mobile ? 118 : 112;
+  const axisY = mobile ? 96 : 92;
+
+  const line = vals.map((v, i) => X(i) + ',' + Y(v)).join(' ');
+  const win = [];
+  for (let i = S.from; i <= S.to; i++) win.push(X(i) + ',' + Y(vals[i]));
+  const area = win.length > 1 ? '<polygon points="' + x0 + ',' + axisY + ' ' + win.join(' ') + ' ' + x1 + ',' + axisY + '" fill="' + t.accent + '" fill-opacity="' + (mobile ? '.14' : '.12') + '"/>' : '';
+
+  let grid = '';
+  [0.5, 1].forEach(f => {
+    const v = Math.round(max * f);
+    grid += '<line x1="' + X(0) + '" y1="' + Y(v) + '" x2="' + (X(0) + plot) + '" y2="' + Y(v) + '" stroke="' + t.grid + '" stroke-width="1"/>' +
+      '<text x="' + (X(0) + plot + (mobile ? 3 : 4)) + '" y="' + (Y(v) + (mobile ? 4 : 3.5)) + '" font-size="' + (mobile ? 11 : 10) + '" fill="' + t.faint + '" font-family="Karla,sans-serif">' + v + '</text>';
+  });
+
+  const coll = mobile ? 62 : 54;
+  let ticks = '', week = '', last = -999;
+  dates.forEach((dt, i) => {
+    const day = new Date(dt + 'T00:00:00');
+    const mon = new Date(day); mon.setDate(day.getDate() - ((day.getDay() + 6) % 7));
+    const key = mon.toISOString().slice(0, 10);
+    const x = X(i);
+    if (key !== week) {
+      week = key;
+      ticks += '<line x1="' + x + '" y1="' + axisY + '" x2="' + x + '" y2="' + (axisY + 5) + '" stroke="' + t.axis + '" stroke-width="1"/>';
+      if (x - last >= coll) {
+        last = x;
+        ticks += '<text x="' + x + '" y="' + (axisY + (mobile ? 17 : 15)) + '" font-size="' + (mobile ? 12 : 11) + '" fill="' + t.muted + '" font-family="Karla,sans-serif" text-anchor="' + (i === 0 ? 'start' : 'middle') + '">' + fmtDate(dt) + '</text>';
+      }
+    } else {
+      ticks += '<circle cx="' + x + '" cy="' + axisY + '" r="' + (mobile ? 1.3 : 1.1) + '" fill="' + t.axis + '"/>';
+    }
+  });
+
+  const handle = (x, side) =>
+    '<g data-brush="' + side + '" cursor="ew-resize">' +
+    '<rect x="' + (x - (mobile ? 22 : 7)) + '" y="' + (mobile ? 0 : 10) + '" width="' + (mobile ? 44 : 14) + '" height="' + (mobile ? H : 86) + '" fill="transparent" pointer-events="all"/>' +
+    '<rect x="' + (x - (mobile ? 2.5 : 2)) + '" y="' + (mobile ? 8 : 14) + '" width="' + (mobile ? 5 : 4) + '" height="' + (mobile ? 88 : 78) + '" rx="' + (mobile ? 2.5 : 2) + '" fill="' + t.accent + '"/>' +
+    '<rect x="' + (x - (mobile ? 7 : 4.5)) + '" y="' + (mobile ? 42 : 44) + '" width="' + (mobile ? 14 : 9) + '" height="' + (mobile ? 26 : 18) + '" rx="' + (mobile ? 7 : 4.5) + '" fill="' + t.accent + '"/>' +
+    '<line x1="' + (x - (mobile ? 2.5 : 1.5)) + '" y1="' + (mobile ? 49 : 49) + '" x2="' + (x - (mobile ? 2.5 : 1.5)) + '" y2="' + (mobile ? 61 : 57) + '" stroke="' + t.paper + '" stroke-width="' + (mobile ? 1.5 : 1) + '"/>' +
+    '<line x1="' + (x + (mobile ? 2.5 : 1.5)) + '" y1="' + (mobile ? 49 : 49) + '" x2="' + (x + (mobile ? 2.5 : 1.5)) + '" y2="' + (mobile ? 61 : 57) + '" stroke="' + t.paper + '" stroke-width="' + (mobile ? 1.5 : 1) + '"/></g>';
+  const dot = (x, v) => '<circle cx="' + x + '" cy="' + Y(v) + '" r="' + (mobile ? 3.5 : 3) + '" fill="' + t.dotFill + '" stroke="' + t.accent + '" stroke-width="' + (mobile ? 2 : 1.6) + '"/>';
+
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" style="display:block;touch-action:none">' +
+    grid + area +
+    '<polyline points="' + line + '" fill="none" stroke="' + t.muted + '" stroke-width="' + (mobile ? 1.6 : 1.4) + '" stroke-linejoin="round"/>' +
+    '<line x1="' + X(0) + '" y1="' + axisY + '" x2="' + (X(0) + plot) + '" y2="' + axisY + '" stroke="' + t.axis + '" stroke-width="1"/>' + ticks +
+    '<rect data-brush="body" x="' + x0 + '" y="' + (mobile ? 8 : 10) + '" width="' + Math.max(mobile ? 6 : 4, x1 - x0) + '" height="' + (mobile ? 88 : 82) + '" fill="transparent" pointer-events="all" cursor="grab"/>' +
+    dot(x0, vals[S.from]) + dot(x1, vals[S.to]) +
+    handle(x0, 'from') + handle(x1, 'to') + '</svg>';
+}
+
+/* ---------- flow (sankey) ---------- */
+function flowSVG(mobile) {
+  const d = S.data, t = RolesFlowTheme.theme();
+  const cap = mobile ? (S.compare === 'co' ? 10 : 0) : (S.compare === 'co' ? 14 : 0);
+  const rows = series(cap);
+  if (!rows.length) return emptyChart(mobile);
+  const W = mobile ? Math.max(240, S.wm - 32) : S.w;
+  const a = d.dates[S.from], b = d.dates[S.to];
+  const NW = mobile ? 8 : 9, GAP = mobile ? 10 : 11, VGUT = mobile ? 24 : 28;
+  const LX = mobile ? 116 : (W < 620 ? 128 : 172);
+  const RX = mobile ? Math.max(LX + 80, W - 42) : Math.max(LX + 120, W - 96);
+  const NAMEEND = LX - 6 - VGUT;
+  const NAMEMAX = mobile ? Math.max(7, Math.floor((NAMEEND - 2) / 6.6)) : Math.max(8, Math.floor((NAMEEND - 8) / 6.7));
+  const colH = mobile ? 290 : 320;
+  const TOP = mobile ? 36 : 34;
+  const tot = Math.max(rows.reduce((s, x) => s + x.v0, 0), rows.reduce((s, x) => s + x.v1, 0), 1);
+  const scale = (colH - GAP * (rows.length - 1)) / tot;
+  const hOf = v => Math.max(mobile ? 3 : 2.5, v * scale);
+  const stack = key => { let y = TOP; return rows.map(x => { const h = hOf(x[key]); const o = { y: y, h: h, mid: y + h / 2 }; y += h + GAP; return o; }); };
+  const L = stack('v0'), R = stack('v1');
+  const H = Math.max(L[L.length - 1].y + L[L.length - 1].h, R[R.length - 1].y + R[R.length - 1].h) + (mobile ? 14 : 20);
+  const focus = mobile ? S.pin : (S.pin || S.hover);
+  const spanW = RX - LX - NW;
+  const c1 = LX + NW + spanW * 0.36, c2 = RX - spanW * 0.36;
+
+  let out = '<text x="' + (mobile ? LX + NW : LX + NW) + '" y="' + (mobile ? 16 : 18) + '" text-anchor="end" font-size="' + (mobile ? 13 : 12) + '" font-family="Spectral,serif" fill="' + t.ink + '">' + fmtDate(a) + '</text>' +
+    '<text x="' + (mobile ? LX + NW : LX + NW) + '" y="' + (mobile ? 30 : 30) + '" text-anchor="end" font-size="' + (mobile ? 10 : 9.5) + '" font-family="Karla,sans-serif" fill="' + t.faint + '" letter-spacing="' + (mobile ? '.09em' : '.08em') + '">START</text>';
+  if (mobile) {
+    out += '<text x="' + (RX + NW) + '" y="16" text-anchor="end" font-size="13" font-family="Spectral,serif" fill="' + t.ink + '">' + fmtDate(b) + '</text>' +
+      '<text x="' + (RX + NW) + '" y="30" text-anchor="end" font-size="10" font-family="Karla,sans-serif" fill="' + t.faint + '" letter-spacing=".09em">END</text>';
+  } else {
+    out += '<text x="' + RX + '" y="18" font-size="12" font-family="Spectral,serif" fill="' + t.ink + '">' + fmtDate(b) + '</text>' +
+      '<text x="' + RX + '" y="30" font-size="9.5" font-family="Karla,sans-serif" fill="' + t.faint + '" letter-spacing=".08em">END</text>' +
+      '<line x1="' + LX + '" y1="' + TOP + '" x2="' + (LX + NW) + '" y2="' + TOP + '" stroke="' + t.rule + '"/>' +
+      '<line x1="' + RX + '" y1="' + TOP + '" x2="' + (RX + NW) + '" y2="' + TOP + '" stroke="' + t.rule + '"/>';
+  }
+
+  rows.forEach((x, i) => {
+    const l = L[i], r = R[i], dim = focus && focus !== x.id, delta = x.v1 - x.v0;
+    const col = delta > 0 ? t.up : delta < 0 ? t.down : t.flat;
+    const op = dim ? 0.08 : (delta === 0 ? (mobile ? 0.26 : 0.28) : 0.5);
+    out += '<path data-it="' + esc(x.id) + '" d="M ' + (LX + NW) + ',' + l.y +
+      ' C ' + c1 + ',' + l.y + ' ' + c2 + ',' + r.y + ' ' + RX + ',' + r.y +
+      ' L ' + RX + ',' + (r.y + r.h) +
+      ' C ' + c2 + ',' + (r.y + r.h) + ' ' + c1 + ',' + (l.y + l.h) + ' ' + (LX + NW) + ',' + (l.y + l.h) + ' Z"' +
+      ' fill="' + col + '" fill-opacity="' + op + '" style="cursor:pointer"/>';
+    const nOp = dim ? 0.3 : 1;
+    out += '<rect data-it="' + esc(x.id) + '" x="' + LX + '" y="' + l.y + '" width="' + NW + '" height="' + l.h + '" fill="' + x.color + '" fill-opacity="' + nOp + '" style="cursor:pointer"/>' +
+      '<rect data-it="' + esc(x.id) + '" x="' + RX + '" y="' + r.y + '" width="' + NW + '" height="' + r.h + '" fill="' + x.color + '" fill-opacity="' + nOp + '" style="cursor:pointer"/>';
+    if (mobile) {
+      out += '<rect data-it="' + esc(x.id) + '" x="0" y="' + (l.y - GAP / 2) + '" width="' + LX + '" height="' + (l.h + GAP) + '" fill="transparent" pointer-events="all"/>';
+    }
+    out += '<text data-it="' + esc(x.id) + '" x="' + NAMEEND + '" y="' + (l.mid + (mobile ? 4.5 : 4)) + '" text-anchor="end" font-size="' + (mobile ? 13 : 12.5) + '" font-family="Karla,sans-serif" fill="' + (dim ? t.faint : t.ink) + '" style="cursor:pointer">' + esc(trunc(x.label, NAMEMAX)) + '</text>' +
+      '<text x="' + (LX - 6) + '" y="' + (l.mid + (mobile ? 4.5 : 4)) + '" text-anchor="end" font-size="' + (mobile ? 12 : 11.5) + '" font-family="Karla,sans-serif" fill="' + t.faint + '" style="font-variant-numeric:tabular-nums">' + x.v0 + '</text>' +
+      '<text x="' + (RX + NW + (mobile ? 6 : 8)) + '" y="' + (r.mid + (mobile ? 4.5 : 4)) + '" font-size="' + (mobile ? 13 : 12.5) + '" font-family="Karla,sans-serif" fill="' + (dim ? t.faint : t.ink) + '" style="font-variant-numeric:tabular-nums">' + x.v1 + '</text>';
+    if (!mobile && delta !== 0) out += '<text x="' + (RX + NW + 40) + '" y="' + (r.mid + 4) + '" font-size="11.5" font-family="Karla,sans-serif" fill="' + col + '" style="font-variant-numeric:tabular-nums;font-weight:600">' + signed(delta) + '</text>';
+  });
+
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" style="display:block">' + out + '</svg>';
+}
+
+/* ---------- ridgeline ---------- */
+function ridgeSVG(mobile) {
+  const d = S.data, t = RolesFlowTheme.theme(), dates = d.dates;
+  const cap = mobile ? (S.compare === 'co' ? 8 : 0) : (S.compare === 'co' ? 14 : 0);
+  const rows = series(cap);
+  if (!rows.length) return emptyChart(mobile);
+  const W = mobile ? Math.max(240, S.wm - 32) : S.w;
+  const LX = mobile ? 96 : (W < 620 ? 116 : 158);
+  const RGUT = mobile ? 62 : 76;
+  const plotW = Math.max(mobile ? 90 : 80, W - LX - RGUT);
+  const n = Math.max(1, dates.length - 1);
+  const X = i => LX + i / n * plotW;
+  const STEP = mobile ? 28 : 30;
+  const AMP = STEP * 2.15;
+  const TOP = mobile ? AMP - STEP + 24 : AMP - STEP + 26;
+  const NAMEMAX = mobile ? Math.max(7, Math.floor((LX - 14) / 6.6)) : Math.max(8, Math.floor((LX - 16) / 6.7));
+  const perBand = ridgeScale() === 'perband';
+  const gMax = Math.max(1, ...rows.map(r => r.peak));
+  const focus = mobile ? S.pin : (S.pin || S.hover);
+  const x0 = X(S.from), x1 = X(S.to);
+  const H = TOP + STEP * rows.length + (mobile ? 40 : 44);
+
+  let bands = '';
+  for (let k = rows.length - 1; k >= 0; k--) {
+    const r = rows[k];
+    const base = TOP + STEP * (k + 1);
+    const max = perBand ? Math.max(1, r.peak) : gMax;
+    const Y = v => base - (v / max) * AMP;
+    const dim = focus && focus !== r.id;
+    const pts = r.vals.map((v, i) => X(i) + ',' + Y(v)).join(' ');
+    bands += '<polygon data-it="' + esc(r.id) + '" points="' + LX + ',' + base + ' ' + pts + ' ' + (LX + plotW) + ',' + base + '" fill="' + r.color +
+      '" fill-opacity="' + (dim ? 0.08 : 0.34) + '" stroke="none" style="cursor:pointer"/>' +
+      '<polyline data-it="' + esc(r.id) + '" points="' + pts + '" fill="none" stroke="' + r.color + '" stroke-opacity="' + (dim ? 0.25 : 1) + '" stroke-width="' + (mobile ? 1.6 : 1.5) + '" stroke-linejoin="round" style="cursor:pointer"/>' +
+      '<line x1="' + LX + '" y1="' + base + '" x2="' + (LX + plotW) + '" y2="' + base + '" stroke="' + t.rule + '" stroke-width="1"/>' +
+      '<text data-it="' + esc(r.id) + '" x="' + (LX - (mobile ? 10 : 12)) + '" y="' + (base - 2) + '" text-anchor="end" font-size="' + (mobile ? 13 : 12.5) + '" font-family="Karla,sans-serif" fill="' + (dim ? t.faint : t.ink) + '" style="cursor:pointer">' + esc(trunc(r.label, NAMEMAX)) + '</text>' +
+      '<text x="' + (LX + plotW + (mobile ? 6 : 8)) + '" y="' + (base - 2) + '" font-size="' + (mobile ? 13 : 12) + '" font-family="Karla,sans-serif" fill="' + (dim ? t.faint : t.muted) + '" style="font-variant-numeric:tabular-nums">' + r.v1 + '</text>';
+    const del = r.v1 - r.v0;
+    if (del !== 0) bands += '<text x="' + (LX + plotW + (mobile ? 30 : 38)) + '" y="' + (base - 2) + '" font-size="' + (mobile ? 12 : 11.5) + '" font-family="Karla,sans-serif" fill="' + (del > 0 ? t.up : t.down) + '" style="font-variant-numeric:tabular-nums;font-weight:600">' + signed(del) + '</text>';
+    bands += '<rect data-it="' + esc(r.id) + '" x="' + (mobile ? 0 : LX) + '" y="' + (base - STEP) + '" width="' + (mobile ? LX : plotW) + '" height="' + STEP + '" fill="transparent" pointer-events="all" style="cursor:pointer"/>';
+  }
+
+  let ticks = '', week = '', last = -999;
+  const axisY = TOP + STEP * rows.length + (mobile ? 16 : 14);
+  const coll = mobile ? 62 : 54;
+  dates.forEach((dt, i) => {
+    const day = new Date(dt + 'T00:00:00');
+    const mon = new Date(day); mon.setDate(day.getDate() - ((day.getDay() + 6) % 7));
+    const key = mon.toISOString().slice(0, 10);
+    const x = X(i);
+    if (key !== week) {
+      week = key;
+      ticks += '<line x1="' + x + '" y1="' + (axisY - (mobile ? 13 : 12)) + '" x2="' + x + '" y2="' + (axisY - (mobile ? 8 : 7)) + '" stroke="' + t.axis + '" stroke-width="1"/>';
+      if (x - last >= coll) {
+        last = x;
+        ticks += '<text x="' + x + '" y="' + axisY + '" font-size="' + (mobile ? 12 : 11) + '" fill="' + t.muted + '" font-family="Karla,sans-serif" text-anchor="' + (i === 0 ? 'start' : 'middle') + '">' + fmtDate(dt) + '</text>';
+      }
+    }
+  });
+
+  const win = '<rect x="' + x0 + '" y="' + (TOP - (mobile ? 12 : 14)) + '" width="' + Math.max(2, x1 - x0) + '" height="' + (STEP * rows.length + (mobile ? 14 : 16)) + '" fill="' + t.accent + '" fill-opacity="' + (mobile ? '.08' : '.07') + '"/>' +
+    '<line x1="' + x0 + '" y1="' + (TOP - (mobile ? 12 : 14)) + '" x2="' + x0 + '" y2="' + (TOP + STEP * rows.length + 2) + '" stroke="' + t.accent + '" stroke-width="1" stroke-dasharray="2 3"/>' +
+    '<line x1="' + x1 + '" y1="' + (TOP - (mobile ? 12 : 14)) + '" x2="' + x1 + '" y2="' + (TOP + STEP * rows.length + 2) + '" stroke="' + t.accent + '" stroke-width="1" stroke-dasharray="2 3"/>' +
+    '<text x="' + x0 + '" y="' + (TOP - (mobile ? 17 : 18)) + '" font-size="' + (mobile ? 11 : 10.5) + '" font-family="Karla,sans-serif" fill="' + t.accent + '">' + fmtDate(dates[S.from]) + '</text>' +
+    '<text x="' + x1 + '" y="' + (TOP - (mobile ? 17 : 18)) + '" font-size="' + (mobile ? 11 : 10.5) + '" font-family="Karla,sans-serif" fill="' + t.accent + '" text-anchor="end">' + fmtDate(dates[S.to]) + '</text>' +
+    (mobile ? '' : '<text x="' + (LX + plotW + 8) + '" y="' + (TOP - 18) + '" font-size="9.5" font-family="Karla,sans-serif" fill="' + t.faint + '" letter-spacing=".08em">NOW</text>');
+
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" style="display:block">' + win + bands + ticks + '</svg>';
+}
+
+function emptyChart(mobile) {
+  return '<div style="padding:' + (mobile ? '40px 0' : '46px 0') + ';color:var(--faint);font-size:' + (mobile ? '14px' : '13px') + '">No open roles in this scope and window.</div>';
+}
+
+/* ---------- facets ---------- */
+function facetGroups(mobile) {
+  const d = S.data, t = RolesFlowTheme.theme();
+  const cohorts = new Map(), sectors = new Map(), works = new Map(), cities = new Map(), sources = new Map();
+  d.companies.forEach(c => {
+    if (c.cohort && matches(c, 'cohort')) cohorts.set(c.cohort, (cohorts.get(c.cohort) || 0) + 1);
+    if (matches(c, 'sector')) (c.industries || []).forEach(i => sectors.set(i, (sectors.get(i) || 0) + 1));
+    if (matches(c, 'work')) { const w = workModeOf(c); works.set(w, (works.get(w) || 0) + 1); }
+    if (matches(c, 'city')) Object.entries(c.jobs_by_loc || {}).forEach(([k, v]) => { if (v > 0) cities.set(k, (cities.get(k) || 0) + v); });
+    if (matches(c, 'source')) sources.set(c.source, (sources.get(c.source) || 0) + 1);
+  });
+  const sortEntries = m => [...m.entries()].sort((p, q) => q[1] - p[1] || p[0].localeCompare(q[0]));
+
+  const q = S.query.trim().toLowerCase();
+  const compEntries = d.companies.filter(c => matches(c))
+    .filter(c => !q || c.company.toLowerCase().includes(q))
+    .sort((p, r) => r.total_jobs - p.total_jobs)
+    .map(c => [c.company, c.total_jobs]);
+
+  const caps = mobile
+    ? { comp: q ? 10 : 6, cohort: 8, sector: 5, work: 3, city: 5, source: 4 }
+    : { comp: q ? 12 : 8, cohort: 8, sector: 6, work: 3, city: 6, source: 4 };
+
+  const groups = [
+    { key: '__companies', label: q ? 'Matching companies' : 'Companies', entries: compEntries, cap: caps.comp, usePicked: true },
+    { key: 'cohort', label: 'Cohort', entries: sortEntries(cohorts).sort((p, r) => p[0].localeCompare(r[0])), cap: caps.cohort },
+    { key: 'source', label: 'Source', entries: sortEntries(sources), cap: caps.source },
+    { key: 'sector', label: 'Sector', entries: sortEntries(sectors), cap: caps.sector },
+    { key: 'work', label: 'Work mode', entries: sortEntries(works), cap: caps.work },
+    { key: 'city', label: 'Location', entries: sortEntries(cities), cap: caps.city }
+  ];
+  return groups.filter(g => S.facetsVis[g.key] !== false).map(g => buildGroup(g, t, mobile));
+}
+
+function buildGroup(g, t, mobile) {
+  const sel = g.usePicked ? S.picked : (S.facets[g.key] || []);
+  const open = !!S.expanded[g.key];
+  const max = Math.max(1, ...g.entries.map(e => e[1]));
+  const shown = open ? g.entries : g.entries.slice(0, g.cap);
+  const more = g.entries.length > g.cap;
+  return {
+    key: g.key, label: g.label,
+    clearLabel: sel.length ? (mobile ? 'Clear' : 'clear') : '',
+    onClear: () => {
+      if (g.usePicked) { S.picked = []; savePicked(); }
+      else S.facets[g.key] = [];
+      renderAll();
+    },
+    moreLabel: !more ? '' : open ? (mobile ? 'Show fewer' : 'fewer') : (mobile ? 'Show ' + (g.entries.length - g.cap) + ' more' : (g.entries.length - g.cap) + ' more'),
+    onMore: () => { S.expanded[g.key] = !open; renderAll(); },
+    rows: shown.map(([k, n]) => {
+      const on = sel.includes(k);
+      return {
+        key: k, count: n,
+        barW: Math.round(n / max * 100) + '%',
+        on: on, barOn: on, weight: on, textOn: on,
+        onToggle: () => {
+          if (g.usePicked) { S.picked = on ? S.picked.filter(x => x !== k) : S.picked.concat([k]); savePicked(); }
+          else S.facets[g.key] = on ? sel.filter(x => x !== k) : sel.concat([k]);
+          renderAll();
+        }
+      };
+    })
+  };
+}
+
+function facetsHTML(mobile) {
+  const t = RolesFlowTheme.theme();
+  return facetGroups(mobile).map(g => {
+    const rows = g.rows.map(r =>
+      '<button type="button" class="' + (mobile ? 'srow' : 'facet-row') + (r.on ? ' on' : '') + '" data-facet="' + g.key + '" data-key="' + esc(r.key) + '">' +
+      (mobile ? '<span class="box"></span>' : '<span class="bar" style="width:' + r.barW + '"></span>') +
+      (mobile ? '<span class="bar" style="width:' + r.barW + '"></span>' : '') +
+      '<span class="name">' + esc(r.key) + '</span>' +
+      '<span class="cnt">' + r.count + '</span></button>');
+    const folded = !!S.folded[g.key];
+    return '<div class="' + (mobile ? 'sgroup' : 'facet') + (folded ? ' folded' : '') + '">' +
+      '<div class="' + (mobile ? 'shead-row' : 'facet-head') + '">' +
+      '<button type="button" class="fold-btn" data-fold="' + g.key + '" aria-expanded="' + !folded + '">' +
+      '<span class="caret">' + (folded ? '▸' : '▾') + '</span><span class="eyebrow">' + g.label + '</span></button>' +
+      (g.clearLabel ? '<button class="' + (mobile ? 'sclear' : 'link-danger') + '" data-clear="' + g.key + '">' + g.clearLabel + '</button>' : '<span></span>') +
+      '</div>' +
+      '<div class="' + (mobile ? 'srows' : 'facet-rows') + '">' + rows.join('') + '</div>' +
+      (!folded && g.moreLabel ? '<button class="' + (mobile ? 'smore' : 'facet-more') + '" data-more="' + g.key + '">' + g.moreLabel + '</button>' : '') +
+      '</div>';
+  }).join('');
+}
+
+/* ---------- detail ---------- */
+function detail() {
+  const d = S.data, t = RolesFlowTheme.theme();
+  const id = S.pin || S.hover;
+  if (!id) return null;
+  const a = d.dates[S.from], b = d.dates[S.to];
+  const sc = scope();
+  let rows, start, end, label, title = id;
+  if (S.compare === 'pair') {
+    const [co, fn] = id.split('|');
+    const c = d.companies.find(x => x.company === co);
+    if (!c) return null;
+    start = fnAsOf(c, a, fn); end = fnAsOf(c, b, fn);
+    rows = FUNCTIONS.map(f2 => ({ label: f2 + ' · ' + co, v1: fnAsOf(c, b, f2), v0: fnAsOf(c, a, f2) }));
+    label = 'Role types open';
+    title = co;
+  } else if (byFunction()) {
+    start = sc.reduce((s, c) => s + fnAsOf(c, a, id), 0);
+    end = sc.reduce((s, c) => s + fnAsOf(c, b, id), 0);
+    rows = sc.map(c => ({ label: c.company, v1: fnAsOf(c, b, id), v0: fnAsOf(c, a, id) }));
+    label = S.compare === 'one' ? 'Within ' + S.focusCo
+      : sc.length === 1 ? 'Within ' + sc[0].company : 'Companies hiring this';
+  } else {
+    const c = d.companies.find(x => x.company === id);
+    if (!c) return null;
+    start = asOf(c, a); end = asOf(c, b);
+    rows = FUNCTIONS.map(fn => ({ label: fn, v1: fnAsOf(c, b, fn), v0: fnAsOf(c, a, fn) }));
+    label = 'Role types open';
+  }
+  rows = rows.filter(r => r.v1 > 0 || r.v0 > 0).sort((p, q) => q.v1 - p.v1);
+  const max = Math.max(1, ...rows.map(r => r.v1));
+  return {
+    title: title, key: id, start: start, end: end, label: label,
+    rows: rows.map(r => ({
+      label: r.label, count: r.v1,
+      delta: r.v1 - r.v0 === 0 ? '' : signed(r.v1 - r.v0),
+      deltaColor: r.v1 - r.v0 > 0 ? t.up : t.down,
+      barW: Math.round(r.v1 / max * 100) + '%'
+    }))
+  };
+}
+
+function liveRoles(id) {
+  const d = S.data;
+  if (!d || !d.roles || !d.roles.length) return null;
+  let rs;
+  if (S.compare === 'pair') {
+    const [co, fn] = id.split('|');
+    rs = d.roles.filter(r => (r.company || '') === co && (r.department || '').toLowerCase() === fn);
+  } else if (byFunction()) {
+    /* fn/one mode: department band, but only inside the scoped companies —
+       picks, facets, and one-company focus all resolve via scope() */
+    const scNames = new Set(scope().map(c => c.company));
+    rs = d.roles.filter(r => (r.department || '').toLowerCase() === id && scNames.has(r.company));
+  } else {
+    rs = d.roles.filter(r => r.company === id);
+  }
+  if (!rs.length) return null;
+  return { n: rs.length, rows: rs.slice(0, 8) };
+}
+
+/* ---------- render ---------- */
+function renderAll() {
+  if (!S.data) {
+    renderLoading();
+    return;
+  }
+  const t = RolesFlowTheme.theme();
+  const d = S.data, dates = d.dates, n = dates.length - 1;
+  const sc = scope();
+  const a = dates[S.from], b = dates[S.to];
+  const t0 = sc.reduce((sum, c) => sum + asOf(c, a), 0);
+  const t1 = sc.reduce((sum, c) => sum + asOf(c, b), 0);
+  const days = Math.round((new Date(b) - new Date(a)) / 86400000);
+
+  /* pinned series survives window moves — re-resolve by id */
+  const rows = series(S.compare === 'co' ? 14 : 0);
+  if (S.pin && !rows.some(r => r.id === S.pin)) { S.pin = null; S.hover = null; }
+  const hoverOK = S.hover && rows.some(r => r.id === S.hover);
+  if (!hoverOK && !S.pin) S.hover = null;
+
+  /* ---- header stats (desktop) ---- */
+  $('#d-stat-scope').textContent = S.compare === 'one' ? '1 / ' + d.companies.length
+    : sc.length + (sc.length === d.companies.length ? '' : ' / ' + d.companies.length);
+  $('#d-stat-now').textContent = t1;
+  const net = t1 - t0;
+  const netEl = $('#d-stat-net');
+  netEl.textContent = signed(net);
+  netEl.style.color = net > 0 ? t.up : net < 0 ? t.down : t.muted;
+
+  /* ---- presets ---- */
+  const presets = [['All', 0], ['30d', 30], ['14d', 14], ['7d', 7]].map(([label, dd]) => {
+    let f = 0;
+    if (dd) {
+      const cut = new Date(dates[n] + 'T00:00:00');
+      cut.setDate(cut.getDate() - dd);
+      const cs = cut.toISOString().slice(0, 10);
+      f = dates.findIndex(x => x >= cs); if (f < 0) f = 0;
+    }
+    const on = S.from === f && S.to === n;
+    return '<button type="button" data-preset="' + f + '" class="' + (isMobile() ? 'preset' : '') + (on ? ' on' : '') + '">' + label + '</button>';
+  }).join('');
+  $('#d-presets').innerHTML = presets;
+  $('#m-presets').innerHTML = presets;
+
+  /* ---- timeline + range ---- */
+  $('#d-timeline').innerHTML = timelineSVG(false);
+  $('#m-timeline').innerHTML = timelineSVG(true);
+  const range = '<div class="fig">' + fmtDate(a) + ' → ' + fmtDate(b) + '</div>' +
+    '<div class="sub num">' + days + ' days · ' + t0 + ' → ' + t1 + (isMobile() ? ' roles' : ' open roles') + ' · <span style="color:' + (net > 0 ? t.up : net < 0 ? t.down : t.muted) + ';font-weight:600">' + signed(net) + '</span></div>';
+  $('#d-range').innerHTML = range;
+  $('#m-range').innerHTML = range;
+
+  /* ---- compare tabs + picker ---- */
+  const tabDef = isMobile()
+    ? [['fn', 'All companies'], ['one', 'One company'], ['co', 'By company'], ['pair', 'Two companies']]
+    : [['fn', 'Role types · all companies'], ['one', 'Role types · one company'], ['co', 'Companies'], ['pair', 'Two companies']];
+  const tabs = tabDef.map(([k, label]) =>
+    '<button type="button" data-tab="' + k + '" class="' + (isMobile() ? 'preset' : '') + (S.compare === k ? ' on' : '') + '">' + label + '</button>').join('');
+  $('#d-tabs').innerHTML = tabs;
+  $('#m-tabs').innerHTML = tabs;
+
+  const opts = d.companies.slice().sort((p, r) => r.total_jobs - p.total_jobs)
+    .map(c => '<option value="' + esc(c.company) + '">' + esc(c.company) + '  ·  ' + c.total_jobs + (isMobile() ? ' roles' : '') + '</option>').join('');
+  $('#d-picker').style.display = S.compare === 'one' ? '' : 'none';
+  $('#m-picker').style.display = S.compare === 'one' ? '' : 'none';
+  $('#d-picker').innerHTML = opts;
+  $('#m-picker').innerHTML = opts;
+  $('#d-picker').value = S.focusCo;
+  $('#m-picker').value = S.focusCo;
+  /* pair mode: two custom dropdowns (A and B) drive S.pair */
+  const pairOn = S.compare === 'pair';
+  $('#d-copicks').innerHTML = pairOn ? coDropHTML(0) + coDropHTML(1) : '';
+  $('#m-copicks').innerHTML = pairOn ? coDropHTML(0) + coDropHTML(1) : '';
+
+  /* ---- chart switch + headings ---- */
+  const ridge = S.chart === 'ridge';
+  const heads = {
+    fn: ridge ? 'Role types over time, all companies in scope' : 'What changed by role type',
+    one: ridge ? 'Role types over time at ' + (S.focusCo || '—') : 'What changed at ' + (S.focusCo || '—'),
+    co: ridge ? 'Companies over time' : 'What changed by company',
+    pair: ridge ? 'Role types over time at the two companies you picked' : 'What changed by role type, two companies'
+  };
+  $('#d-chart-head').textContent = heads[S.compare];
+  $('#d-chart-switch').innerHTML =
+    '<button type="button" data-chart="flow"' + (ridge ? '' : ' class="on"') + '>Flow</button>' +
+    '<button type="button" data-chart="ridge"' + (ridge ? ' class="on"' : '') + '>Ridgeline</button>';
+  $('#d-ridgeseg').innerHTML = ridge
+    ? '<button type="button" data-ridge="shared"' + (ridgeScale() === 'shared' ? ' class="on"' : '') + '>Shared</button>' +
+      '<button type="button" data-ridge="perband"' + (ridgeScale() === 'perband' ? ' class="on"' : '') + '>Per band</button>'
+    : '';
+  $('#d-hint').textContent = S.compare === 'pair'
+    ? 'One band per role type per company, colored by company. Bands share a common vertical scale, so the two companies\' mixes are directly comparable.'
+    : ridge
+      ? 'Each band is one series across every scan; the shaded column is the window you set above. Bands share a common vertical scale, so heights are comparable.'
+      : 'Ribbon thickness is the number of open roles; widening means added, narrowing means cut. Click a bar to pin it.';
+
+  /* ---- chart + legend ---- */
+  $('#d-chart').innerHTML = ridge ? ridgeSVG(false) : flowSVG(false);
+  const legend = (S.compare === 'pair'
+    ? [{ c: t.pairA, l: S.pair[0] || 'company A' }, { c: t.pairB, l: S.pair[1] || 'company B' }, { c: t.accent, l: 'comparison window' }, { c: t.up, l: 'up over window' }, { c: t.down, l: 'down over window' }]
+    : ridge
+      ? [{ c: t.accent, l: 'comparison window' }, { c: t.up, l: 'up over window' }, { c: t.down, l: 'down over window' }]
+      : [{ c: t.up, l: 'added' }, { c: t.down, l: 'cut' }, { c: t.flat, l: 'unchanged' }]);
+  $('#d-legend').innerHTML = legend.map(x => '<span style="display:inline-flex;align-items:center;gap:6px"><i style="background:' + x.c + '"></i>' + x.l + '</span>').join('');
+  $('#m-legend').innerHTML = legend.map(x => '<span style="display:inline-flex;align-items:center;gap:6px;flex:none"><i style="background:' + x.c + '"></i>' + x.l + '</span>').join('');
+
+  /* ---- desktop detail rail ---- */
+  const det = detail();
+  const detEl = $('#d-detail');
+  $('#d-det-title').textContent = det ? det.title : 'Detail';
+  $('#d-unpin').style.display = S.pin ? '' : 'none';
+  if (!det) {
+    detEl.innerHTML = '<p style="font-size:12.5px;color:var(--muted);line-height:1.7">Hover a band, bar or ribbon to see what sits inside it. Click to pin it while you move the date window.</p>';
+  } else {
+    const lr = liveRoles(det.key);
+    let html = '<div style="display:flex;align-items:baseline;gap:8px;padding-bottom:10px;border-bottom:1px solid var(--rule);margin-bottom:12px">' +
+      '<span class="fig" style="font-size:26px;line-height:1">' + det.end + '</span>' +
+      '<span style="font-size:12px;color:var(--muted)">roles</span>' +
+      '<span style="margin-left:auto;font-size:13px;font-weight:700;color:' + detDeltaColor(det) + '">' + signed(det.end - det.start) + '</span></div>' +
+      '<div class="eyebrow" style="margin-bottom:7px">' + det.label + '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:3px">' +
+      det.rows.slice(0, 10).map(r =>
+        '<div style="position:relative;display:flex;align-items:center;gap:8px;padding:3px 6px;overflow:hidden">' +
+        '<span style="position:absolute;left:0;top:0;bottom:0;width:' + r.barW + ';background:var(--bar)"></span>' +
+        '<span style="position:relative;flex:1;min-width:0;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(r.label) + '</span>' +
+        '<span style="position:relative;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums">' + r.count + '</span>' +
+        '<span style="position:relative;font-size:11.5px;font-variant-numeric:tabular-nums;width:30px;text-align:right;color:' + r.deltaColor + '">' + r.delta + '</span></div>').join('') +
+      '</div>' +
+      '<p style="margin:14px 0 0;font-size:11px;color:var(--faint);line-height:1.6">Counts are open roles as of ' + fmtDate(b) + '; the third column is the change since ' + fmtDate(a) + '.</p>';
+    if (lr) {
+      html += '<div class="eyebrow" style="margin:18px 0 7px">LIVE ROLES · ' + lr.n + '</div>' +
+        '<div style="display:flex;flex-direction:column">' +
+        lr.rows.map(r =>
+          '<a href="' + esc(r.url) + '" target="_blank" rel="noopener" style="padding:4px 0;font-size:12.5px;line-height:1.45;min-width:0">' +
+          '<span style="display:block;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(r.title) + '</span>' +
+          '<span style="display:block;color:var(--faint);font-size:11px">' + esc(r.location || '') + '</span></a>').join('') +
+        '</div>';
+    }
+    detEl.innerHTML = html;
+  }
+
+  /* ---- desktop facets + pills ---- */
+  $('#d-facets').innerHTML = facetsHTML(false);
+  const pills = S.picked.map(name =>
+    '<button type="button" class="pill" data-pill="' + esc(name) + '">' + esc(name) + ' ×</button>').join('');
+  $('#d-pills').innerHTML = pills + (S.picked.length ? '<button class="link-danger" id="d-clear-picked">clear</button>' : '');
+
+  /* ---- desktop provenance ---- */
+  $('#d-prov').textContent =
+    (S.live ? 'LIVE · fetched ' + fmtTime(d.generated_at) + ' · ' : '') +
+    (d.partial ? d.companies.length + ' of ' + d.companies_in_full_export + ' companies in this file. ' : '') +
+    dates.length + ' scans, ' + fmtDate(dates[0]) + ' to ' + fmtDate(dates[n]) + '. Source: ' + (d.source || '');
+
+  /* ================= MOBILE ================= */
+  $('#m-sub').textContent = fmtDate(dates[0]) + ' – ' + fmtDate(dates[n]) + ' · ' + dates.length + ' scans';
+  const fc = filterCount();
+  const sb = $('#m-scope-btn');
+  sb.textContent = 'Scope' + (fc ? ' · ' + fc : '');
+  sb.classList.toggle('on', !!fc);
+  $('#m-s1').textContent = S.compare === 'one' ? '1' : sc.length;
+  $('#m-s2').textContent = t1;
+  const netEl3 = $('#m-s3');
+  netEl3.textContent = signed(net);
+  netEl3.style.color = net > 0 ? t.up : net < 0 ? t.down : t.muted;
+
+  /* deck */
+  const titles = ['Flow · ' + fmtDate(a) + ' to ' + fmtDate(b), 'Trend across all scans', 'The numbers'];
+  const hints = [
+    'Ribbons widen where roles were added, narrow where they were cut. Tap one for detail.',
+    'One band per series across every scan. The dashed column is the window you set above.',
+    'Only the four figures that matter. Tap a row for its breakdown.'
+  ];
+  $('#m-title').textContent = titles[S.panel];
+  $('#m-hint').textContent = hints[S.panel];
+  $('#m-dots').innerHTML = ['Flow', 'Trend', 'Table'].map((p, i) =>
+    '<button type="button" class="dot' + (i === S.panel ? ' on' : '') + '" data-panel="' + i + '" title="' + p + '"><span></span></button>').join('');
+
+  $('#m-p0').innerHTML = flowSVG(true);
+  $('#m-p1').innerHTML = ridgeSVG(true);
+  $('#m-p2').innerHTML = tableHTML(t, dates, a, b, rows);
+
+  syncPanelHs();
+
+  /* detail card */
+  const mcard = $('#m-card');
+  if (S.pin && det) {
+    mcard.style.display = '';
+    mcard.innerHTML =
+      '<div class="ctitle"><span class="name">' + esc(det.title) + '</span>' +
+      '<button type="button" class="close-pill" id="m-card-close">Close</button></div>' +
+      '<div class="cfig"><span class="v">' + det.end + '</span><span class="lab">roles now</span>' +
+      '<span class="delta" style="color:' + detDeltaColor(det) + '">' + signed(det.end - det.start) + '</span></div>' +
+      '<div class="ceyebrow">' + det.label + '</div>' +
+      '<div class="crows">' + det.rows.slice(0, 6).map(r =>
+        '<div class="crow"><span class="bar" style="width:' + r.barW + '"></span>' +
+        '<span class="name">' + esc(r.label) + '</span>' +
+        '<span class="cnt">' + r.count + '</span>' +
+        '<span class="delta" style="color:' + r.deltaColor + '">' + r.delta + '</span></div>').join('') + '</div>' +
+      '<p class="cnote">Counts as of ' + fmtDate(b) + '; change since ' + fmtDate(a) + '.</p>';
+    $('#m-card-close').onclick = () => { S.pin = null; renderAll(); };
+  } else {
+    mcard.style.display = 'none';
+    mcard.innerHTML = '';
+  }
+
+  /* sheet */
+  $('#m-facets').innerHTML = facetsHTML(true);
+  $('#m-search').value = S.query;
+  $('#m-summary').textContent = sc.length + ' of ' + d.companies.length + ' companies match · ' + t1 + ' open roles';
+  $('#m-reset').textContent = (fc || S.query) ? 'Reset' : '';
+  $('#m-ssegs').innerHTML =
+    '<button type="button" class="sseg' + (ridgeScale() === 'shared' ? ' on' : '') + '" data-mscale="shared">Shared scale</button>' +
+    '<button type="button" class="sseg' + (ridgeScale() === 'perband' ? ' on' : '') + '" data-mscale="perband">Per band</button>';
+
+  /* mobile provenance */
+  $('#m-prov').textContent =
+    (S.live ? 'LIVE · fetched ' + fmtTime(d.generated_at) + ' · ' : '') +
+    (d.partial ? d.companies.length + ' of ' + d.companies_in_full_export + ' companies in this file. ' : '') +
+    dates.length + ' scans, ' + fmtDate(dates[0]) + ' to ' + fmtDate(dates[n]) + '.';
+}
+
+function detDeltaColor(det) {
+  const t = RolesFlowTheme.theme();
+  const n = det.end - det.start;
+  return n > 0 ? t.up : n < 0 ? t.down : t.muted;
+}
+
+function tableHTML(t, dates, a, b, rows) {
+  const total = series(S.compare === 'co' ? 10 : 0).length;
+  const body = rows.slice(0, S.compare === 'co' ? 10 : rows.length).map(r => {
+    const del = r.v1 - r.v0;
+    return '<button type="button" class="trow' + (S.pin === r.id ? ' pinned' : '') + '" data-trow="' + esc(r.id) + '">' +
+      '<span class="lab"><i style="background:' + r.color + '"></i><span>' + esc(r.label) + '</span></span>' +
+      '<span class="n">' + r.v0 + '</span>' +
+      '<span class="n ink">' + r.v1 + '</span>' +
+      '<span class="chg" style="color:' + (del > 0 ? t.up : del < 0 ? t.down : t.faint) + '">' + (del === 0 ? '—' : signed(del)) + '</span></button>';
+  }).join('');
+  return '<div class="table-head"><span>' + (byFunction() ? 'Role type' : 'Company') + '</span><span>Was</span><span>Now</span><span>Chg</span></div>' +
+    body +
+    '<p class="table-note">' + (rows.length < total ? 'Top ' + rows.length + ' of ' + total + ' by current openings. ' : '') +
+    'Was = ' + fmtDate(a) + ', Now = ' + fmtDate(b) + '.</p>';
+}
+
+function renderLoading() {
+  const msg = S.err ? 'Could not load data.json — ' + S.err : 'Loading scan history…';
+  $('#d-stat-scope').textContent = '—';
+  $('#d-stat-now').textContent = '—';
+  const netEl = $('#d-stat-net');
+  netEl.textContent = '—'; netEl.style.color = '';
+  $('#d-timeline').innerHTML = '<div style="height:112px"></div>';
+  $('#d-chart').innerHTML = '<div style="height:260px;color:var(--faint);font-size:13px;padding-top:40px">' + msg + '</div>';
+  $('#d-detail').innerHTML = '<p style="font-size:12.5px;color:var(--muted);line-height:1.7">Hover a band, bar or ribbon to see what sits inside it. Click to pin it while you move the date window.</p>';
+  $('#m-sub').textContent = S.err ? 'Load failed' : 'Loading…';
+  $('#m-timeline').innerHTML = '<div style="height:118px"></div>';
+  $('#m-p0').innerHTML = '<div style="height:220px;color:var(--faint);font-size:14px;padding-top:40px">' + msg + '</div>';
+  $('#m-p1').innerHTML = '';
+  $('#m-p2').innerHTML = '';
+  syncPanelHs();
+}
+
+/* ---------- panel height sync (mobile deck) ---------- */
+let _panels = [null, null, null];
+function syncPanelHs() {
+  const hs = _panels.map(el => (el ? Math.round(el.getBoundingClientRect().height) : 0));
+  if (hs.length < 3) return;
+  if (hs.some((h, i) => Math.abs(h - S.panelHs[i]) > 1)) S.panelHs = hs;
+  updateTrack();
+}
+function updateTrack() {
+  const deck = $('#m-deck'), track = $('#m-track');
+  const hs = S.panelHs;
+  const h = hs[S.panel] ? ((S.swiping ? Math.max(hs[0], hs[1], hs[2]) : hs[S.panel]) + 'px') : 'auto';
+  deck.style.height = h;
+  track.style.transform = 'translateX(calc(' + (-33.3333 * S.panel) + '% + ' + S.dragX + 'px))';
+  track.style.transition = S.swiping ? 'none' : 'transform .32s cubic-bezier(.22,.61,.36,1)';
+}
+
+/* ---------- resize observers ---------- */
+new ResizeObserver(es => {
+  const w = Math.round(es[0].contentRect.width);
+  if (w > 100 && Math.abs(w - S.w) > 1) { S.w = w; renderAll(); }
+}).observe(document.querySelector('.desk .main'));
+new ResizeObserver(es => {
+  const w = Math.round(es[0].contentRect.width);
+  if (w > 100 && Math.abs(w - S.wm) > 1) { S.wm = w; renderAll(); }
+}).observe(document.querySelector('#m-timeline'));
+const panelRO = new ResizeObserver(() => syncPanelHs());
+for (let i = 0; i < 3; i++) {
+  const el = document.querySelector('#m-p' + i);
+  _panels[i] = el;
+  panelRO.observe(el);
+}
+
+/* ---------- load ---------- */
+function applyData(d) {
+  const n = Math.max(0, d.dates.length - 1);
+  const biggest = d.companies.slice().sort((a, b) => b.total_jobs - a.total_jobs)[0];
+  S.data = d; S.from = 0; S.to = n;
+  S.focusCo = biggest ? biggest.company : '';
+  try { const saved = JSON.parse(localStorage.getItem('rolesFlow.folded')); if (saved && typeof saved === 'object') S.folded = saved; } catch (err) {}
+  try { const vis = JSON.parse(localStorage.getItem('rolesFlow.facetsVis')); if (vis && typeof vis === 'object') S.facetsVis = Object.assign({}, S.facetsVis, vis); } catch (err) {}
+  try { const pk = JSON.parse(localStorage.getItem('rolesFlow.picked')); if (Array.isArray(pk)) S.picked = pk.filter(n => d.companies.some(c => c.company === n)); } catch (err) {}
+  try { const pr = JSON.parse(localStorage.getItem('rolesFlow.pair')); if (Array.isArray(pr)) S.pair = pr.slice(0, 2).filter(n => d.companies.some(c => c.company === n)); } catch (err) {}
+  renderAll();
+}
+function loadData(path, live) {
+  fetch(path).then(r => {
+    if (!r.ok) throw new Error('http ' + r.status);
+    return r.json();
+  }).then(d => { S.live = live; applyData(d); })
+    .catch(e => {
+      if (live) { loadData('./data.json', false); }
+      else { S.err = String(e.message || e); renderAll(); }
+    });
+}
+(function boot() {
+  const params = new URLSearchParams(location.search);
+  if (params.get('data') === 'sqlite') {   /* demo/demo.db via sql.js */
+    import('../loader.js').then((m) => m.loadBoardData('flow', 'sqlite')).then((d) => { S.live = false; applyData(d); })
+      .catch((e) => { S.err = String(e.message || e); renderAll(); });
+  } else {
+    loadData('./data.json', false);   /* static build: data.json ships next to this page */
+  }
+})();
+
+/* ---------- theme switchers ---------- */
+RolesFlowTheme.mountSwitcher(document.querySelector('#d-theme'), () => renderAll());
+(function themeMobile() {
+  const labels = { paper: 'Paper', ink: 'Ink', pop: 'Pop', tide: 'Tide' };
+  const el = document.createElement('div');
+  el.className = 'ssegs';
+  el.style.marginBottom = '0';
+  RolesFlowTheme.palettes.forEach(p => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'sseg' + (p === RolesFlowTheme.current() ? ' on' : '');
+    b.textContent = labels[p];
+    b.onclick = () => { RolesFlowTheme.set(p); renderAll(); };
+    el.appendChild(b);
+  });
+  document.querySelector('#m-ssegs').after(el);
+  window.addEventListener('themechange', () => { renderAll(); });
+})();
+
+/* ---------- events: desktop ---------- */
+$('#d-search').addEventListener('input', e => { S.query = e.target.value; renderAll(); });
+$('#m-search').addEventListener('input', e => { S.query = e.target.value; renderAll(); });
+
+$('#d-presets').addEventListener('click', e => {
+  const b = e.target.closest('[data-preset]');
+  if (b) setRange(+b.dataset.preset, S.data.dates.length - 1);
+});
+$('#m-presets').addEventListener('click', e => {
+  const b = e.target.closest('[data-preset]');
+  if (b) setRange(+b.dataset.preset, S.data.dates.length - 1);
+});
+function pickTab(compare) {
+  S.compare = compare; S.pin = null; S.hover = null; closeCoDrop();
+  if (compare === 'pair') {
+    S.chart = 'ridge';  /* ridge is pair-native */
+    if (!S.pair.length && S.data) {
+      S.pair = S.data.companies.slice().sort((p, r) => r.total_jobs - p.total_jobs).slice(0, 2).map(c => c.company);
+      savePair();
+    }
+  }
+  renderAll();
+}
+$('#d-tabs').addEventListener('click', e => {
+  const b = e.target.closest('[data-tab]');
+  if (b) pickTab(b.dataset.tab);
+});
+$('#m-tabs').addEventListener('click', e => {
+  const b = e.target.closest('[data-tab]');
+  if (b) pickTab(b.dataset.tab);
+});
+$('#d-picker').addEventListener('change', e => { S.focusCo = e.target.value; S.pin = null; S.hover = null; renderAll(); });
+$('#m-picker').addEventListener('change', e => { S.focusCo = e.target.value; S.pin = null; renderAll(); });
+$('#d-chart-switch').addEventListener('click', e => {
+  const b = e.target.closest('[data-chart]');
+  if (!b) return;
+  S.chart = b.dataset.chart; S.pin = null; S.hover = null; renderAll();
+});
+$('#d-ridgeseg').addEventListener('click', e => {
+  const b = e.target.closest('[data-ridge]');
+  if (b) { S.ridgeScale = b.dataset.ridge; renderAll(); }
+});
+
+/* company dropdowns: open/close/pick (both shells, delegated) */
+document.addEventListener('click', e => {
+  const pick = e.target.closest('[data-copick]');
+  if (pick) {
+    S.pair[+pick.dataset.slot] = pick.dataset.name;
+    savePair(); S.pin = null; S.hover = null; closeCoDrop();
+    renderAll();
+    return;
+  }
+  const drop = e.target.closest('[data-codrop]');
+  if (drop) {
+    const slot = +drop.dataset.codrop;
+    if (S.coDrop === slot) closeCoDrop();
+    else { S.coDrop = slot; S.coQ = ''; }
+    renderAll();
+    return;
+  }
+  if (S.coDrop !== null && !e.target.closest('.co-drop')) closeCoDrop(), renderAll();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && S.coDrop !== null) { closeCoDrop(); renderAll(); }
+});
+document.addEventListener('input', e => {
+  const cs = e.target.closest('[data-cosearch]');
+  if (!cs) return;
+  S.coQ = e.target.value;
+  renderAll();
+  const inp = document.querySelector('.co-drop.open .co-search');   // rerender rebuilt it — keep focus
+  if (inp) { inp.focus(); inp.value = S.coQ; const end = inp.value.length; inp.setSelectionRange(end, end); }
+});
+
+/* facet delegation (desktop + sheet) */
+function facetDelegate(e, mobile) {
+  const fo = e.target.closest('[data-fold]');
+  if (fo) {
+    const k = fo.dataset.fold;
+    S.folded[k] = !S.folded[k];
+    try { localStorage.setItem('rolesFlow.folded', JSON.stringify(S.folded)); } catch (err) {}
+    renderAll();
+    return;
+  }
+  const tg = e.target.closest('[data-facet]');
+  if (tg) {
+    const g = tg.dataset.facet, k = tg.dataset.key;
+    if (g === '__companies') {
+      const on = S.picked.includes(k);
+      S.picked = on ? S.picked.filter(x => x !== k) : S.picked.concat([k]);
+      savePicked();
+    } else {
+      const sel = S.facets[g] || [];
+      const on = sel.includes(k);
+      S.facets[g] = on ? sel.filter(x => x !== k) : sel.concat([k]);
+    }
+    renderAll();
+    return;
+  }
+  const cl = e.target.closest('[data-clear]');
+  if (cl) {
+    const g = cl.dataset.clear;
+    if (g === '__companies') { S.picked = []; savePicked(); }
+    else S.facets[g] = [];
+    renderAll();
+    return;
+  }
+  const mo = e.target.closest('[data-more]');
+  if (mo) { S.expanded[mo.dataset.more] = !S.expanded[mo.dataset.more]; renderAll(); }
+}
+$('#d-facets').addEventListener('click', e => facetDelegate(e, false));
+$('#m-facets').addEventListener('click', e => facetDelegate(e, true));
+
+/* ---------- preferences picker ---------- */
+const FACET_LABELS = { __companies: 'Companies', cohort: 'Cohort', source: 'Source', sector: 'Sector', work: 'Work mode', city: 'Location' };
+const FACET_SUBS = {
+  __companies: 'search + pins, the list itself',
+  cohort: 'which speedrun cohort a company came from',
+  source: 'speedrun portfolio vs ATS boards',
+  sector: 'industries tagged on each company',
+  work: 'remote-first / hybrid / in-office split',
+  city: 'cities with open roles'
+};
+const FACET_DEFAULTS = { __companies: true, cohort: true, source: true, sector: true, work: true, city: true };
+function renderPrefs() {
+  $('#prefs-rows').innerHTML = Object.keys(FACET_LABELS).map(k => {
+    const on = S.facetsVis[k] !== false;
+    return '<button type="button" class="prefs-row' + (on ? ' on' : '') + '" data-prefs-vis="' + k + '">' +
+      '<span class="box">' + (on ? '✓' : '') + '</span>' +
+      '<span class="name">' + FACET_LABELS[k] + '</span>' +
+      '<span class="sub">' + FACET_SUBS[k] + '</span></button>';
+  }).join('');
+}
+function openPrefs() { renderPrefs(); $('#prefs').style.display = ''; }
+function closePrefs() { $('#prefs').style.display = 'none'; }
+$('#d-prefs').addEventListener('click', openPrefs);
+$('#m-prefs').addEventListener('click', openPrefs);
+$('#prefs-close').addEventListener('click', closePrefs);
+$('#prefs-done').addEventListener('click', closePrefs);
+$('#prefs').addEventListener('click', e => {
+  if (e.target.id === 'prefs') { closePrefs(); return; }  /* backdrop click */
+  const row = e.target.closest('[data-prefs-vis]');
+  if (row) {
+    const k = row.dataset.prefsVis;
+    const hide = S.facetsVis[k] !== false;
+    S.facetsVis[k] = !hide;
+    if (hide) {  /* hidden group keeps no invisible selections */
+      if (k === '__companies') { S.picked = []; savePicked(); }
+      else S.facets[k] = [];
+    }
+    try { localStorage.setItem('rolesFlow.facetsVis', JSON.stringify(S.facetsVis)); } catch (err) {}
+    renderPrefs(); renderAll();
+    return;
+  }
+  if (e.target.id === 'prefs-reset') {
+    S.facetsVis = Object.assign({}, FACET_DEFAULTS);
+    try { localStorage.setItem('rolesFlow.facetsVis', JSON.stringify(S.facetsVis)); } catch (err) {}
+    renderPrefs(); renderAll();
+  }
+});
+
+$('#d-pills').addEventListener('click', e => {
+  const p = e.target.closest('[data-pill]');
+  if (p) { S.picked = S.picked.filter(x => x !== p.dataset.pill); savePicked(); renderAll(); return; }
+  if (e.target.id === 'd-clear-picked') { S.picked = []; savePicked(); renderAll(); }
+});
+
+/* hover + pin on desktop chart */
+$('#d-chart').addEventListener('mousemove', e => {
+  if (S.pin) return;
+  const el = e.target.closest && e.target.closest('[data-it]');
+  const id = el ? el.getAttribute('data-it') : null;
+  if (id !== S.hover) { S.hover = id; renderAll(); }
+});
+$('#d-chart').addEventListener('mouseleave', () => {
+  if (!S.pin && S.hover) { S.hover = null; renderAll(); }
+});
+$('#d-chart').addEventListener('click', e => {
+  const el = e.target.closest && e.target.closest('[data-it]');
+  if (!el) return;
+  const id = el.getAttribute('data-it');
+  S.pin = S.pin === id ? null : id;
+  S.hover = id;
+  renderAll();
+});
+$('#d-unpin').addEventListener('click', () => { S.pin = null; S.hover = null; renderAll(); });
+
+/* ---------- events: mobile ---------- */
+$('#m-scope-btn').addEventListener('click', () => { S.filtersOpen = true; $('#m-sheet').style.display = ''; });
+$('#m-done').addEventListener('click', () => { S.filtersOpen = false; $('#m-sheet').style.display = 'none'; });
+$('#m-reset').addEventListener('click', () => {
+  S.facets = { cohort: [], sector: [], work: [], city: [], source: [] };
+  S.picked = []; savePicked(); S.query = ''; renderAll();
+});
+$('#m-dots').addEventListener('click', e => {
+  const b = e.target.closest('[data-panel]');
+  if (b) { S.panel = +b.dataset.panel; S.dragX = 0; S.swiping = false; renderAll(); }
+});
+$('#m-p0').addEventListener('click', tapPin);
+$('#m-p1').addEventListener('click', tapPin);
+$('#m-p2').addEventListener('click', e => {
+  if (S.swiping) return;
+  const b = e.target.closest('[data-trow]');
+  if (!b) return;
+  S.pin = S.pin === b.dataset.trow ? null : b.dataset.trow;
+  renderAll();
+});
+function tapPin(e) {
+  if (S.swiping) return;
+  const el = e.target.closest && e.target.closest('[data-it]');
+  if (!el) return;
+  const id = el.getAttribute('data-it');
+  S.pin = S.pin === id ? null : id;
+  renderAll();
+}
+$('#m-ssegs').addEventListener('click', e => {
+  const b = e.target.closest('[data-mscale]');
+  if (b) { S.ridgeScale = b.dataset.mscale; renderAll(); }
+});
+
+/* ---------- brush + swipe (window-level) ---------- */
+let _brush = null, _grab = 0, _swipe = null;
+$('#d-timeline').addEventListener('pointerdown', e => {
+  const g = e.target.closest && e.target.closest('[data-brush]');
+  if (!g) return;
+  const side = g.getAttribute('data-brush');
+  if (side === 'body') { _brush = 'move'; _grab = idxAt(e.clientX) - S.from; }
+  else _brush = side;
+});
+$('#m-timeline').addEventListener('pointerdown', e => {
+  const g = e.target.closest && e.target.closest('[data-brush]');
+  if (!g) return;
+  const side = g.getAttribute('data-brush');
+  if (side === 'body') { _brush = 'move'; _grab = idxAt(e.clientX) - S.from; }
+  else _brush = side;
+});
+$('#m-deck').addEventListener('pointerdown', e => {
+  if (e.target.closest && e.target.closest('[data-brush]')) return;
+  _swipe = { x: e.clientX, y: e.clientY, locked: false };
+});
+window.addEventListener('pointermove', e => {
+  if (_brush && S.data) {
+    const i = idxAt(e.clientX);
+    const n = S.data.dates.length - 1;
+    if (_brush === 'from') setRange(Math.min(i, S.to), S.to);
+    else if (_brush === 'to') setRange(S.from, Math.max(i, S.from));
+    else { const w = S.to - S.from; const f = clamp(i - _grab, 0, n - w); setRange(f, f + w); }
+    return;
+  }
+  if (!_swipe) return;
+  const dx = e.clientX - _swipe.x, dy = e.clientY - _swipe.y;
+  if (!_swipe.locked) {
+    if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+    if (Math.abs(dy) >= Math.abs(dx)) { _swipe = null; return; }
+    _swipe.locked = true;
+    S.swiping = true;
+  }
+  const edge = (S.panel === 0 && dx > 0) || (S.panel === 2 && dx < 0);
+  S.dragX = dx * (edge ? 0.3 : 1);
+  updateTrack();
+});
+window.addEventListener('pointerup', () => {
+  _brush = null;
+  if (_swipe && _swipe.locked) {
+    const step = Math.abs(S.dragX) > S.wm * 0.2 ? (S.dragX < 0 ? 1 : -1) : 0;
+    S.panel = clamp(S.panel + step, 0, 2);
+    S.dragX = 0; S.swiping = false;
+    renderAll();
+  }
+  _swipe = null;
+});
+window.addEventListener('pointercancel', () => {
+  _brush = null;
+  if (_swipe && _swipe.locked) { S.swiping = false; S.dragX = 0; updateTrack(); }
+  _swipe = null;
+});
+
+renderAll();
+})();
+</script>
+</body>
+</html>

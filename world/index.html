@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Tecland</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,600;1,400&family=Karla:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --paper:#fff2ee; --panel:#fff; --rule:#f2d9d2; --ink:#0d0d0d; --muted:#5c5350; --faint:#6b615d;
+    --accent:#fb5b60; --chipBg:#ffe0e8; --chipBd:#ffa6bf; --up:#5f9b1f; --down:#fb5b60;
+    --sheet:38vh;
+    /* sprite needs these — board-icons.svg symbols reference them */
+    --board-wall:#fbf4f0; --board-ink:#0d0d0d; --board-steel:#8d8f98; --board-hull:#4a5560;
+  }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { margin:0; padding:0; height:100%; background:var(--paper); color:var(--ink);
+    font-family:Karla, system-ui, sans-serif; -webkit-font-smoothing:antialiased; overscroll-behavior:none; }
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { color:#d9464b; text-decoration:underline; }
+  button { font-family:inherit; cursor:pointer; }
+  #app { display:flex; flex-direction:column; height:100%; overflow:hidden; }
+  #bar { flex:0 0 auto; display:flex; align-items:flex-end; gap:24px; padding:14px 20px 12px; border-bottom:1px solid var(--rule); }
+  #bar h1 { margin:0; font-family:Spectral, serif; font-weight:600; font-size:22px; letter-spacing:-0.01em; line-height:1.1; }
+  #bar .sub { font-size:13px; color:var(--muted); margin-top:2px; }
+  #bar .spacer { flex:1; }
+  #bar .score, #bar .status { display:none; }
+  .tools { display:flex; align-items:center; gap:6px; }
+  .pill { font-size:11.5px; font-weight:600; letter-spacing:0.02em; padding:6px 11px; border-radius:999px;
+    border:1px solid var(--rule); background:#fff; color:var(--muted); }
+  .pill:hover { border-color:var(--accent); color:var(--ink); }
+  .pill.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .pill.solid { background:var(--accent); border-color:var(--accent); color:#fff; }
+  #mid { flex:1; display:flex; min-height:0; }
+  #stage { flex:1; position:relative; min-width:0; touch-action:none; }
+  #canvas, #labels { position:absolute; inset:0; }
+  #labels { overflow:hidden; pointer-events:none; }
+  .hint { position:absolute; bottom:14px; font-size:11px; line-height:1.65; color:var(--faint); pointer-events:none; }
+  .hint.l { left:16px; } .hint.r { right:16px; text-align:right; }
+  #panel { width:342px; flex:0 0 342px; border-left:1px solid var(--rule); background:var(--panel); overflow-y:auto; padding:18px 20px 26px; }
+  #scrub { flex:0 0 auto; display:flex; align-items:center; gap:14px; padding:12px 20px 14px; border-top:1px solid var(--rule); }
+  #scrub .date { font-family:Spectral, serif; font-size:15px; width:150px; flex:0 0 auto; }
+  #scrub .count { font-size:12px; color:var(--muted); width:130px; text-align:right; flex:0 0 auto; }
+  #play { width:34px; height:34px; flex:0 0 auto; border-radius:50%; border:none; background:var(--accent); color:#fff; font-size:13px; display:flex; align-items:center; justify-content:center; }
+  input[type=range] { -webkit-appearance:none; appearance:none; background:transparent; flex:1; height:18px; }
+  input[type=range]::-webkit-slider-runnable-track { height:4px; border-radius:2px; background:#f0cfc7; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:18px; height:18px; margin-top:-7px;
+    border-radius:50%; background:var(--accent); border:3px solid #fff; box-shadow:0 1px 4px rgba(13,13,13,.2); }
+  input[type=range]::-moz-range-track { height:4px; border-radius:2px; background:#f0cfc7; }
+  input[type=range]::-moz-range-thumb { width:12px; height:12px; border-radius:50%; background:var(--accent); border:3px solid #fff; }
+
+  .h { font-size:11px; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:var(--faint); margin-top:22px; }
+  .big { font-family:Spectral, serif; font-weight:300; font-size:52px; line-height:1; }
+  .title { font-family:Spectral, serif; font-weight:600; font-size:22px; letter-spacing:-0.01em; line-height:1.15; }
+  .row { display:flex; align-items:center; gap:9px; padding:6px 8px; margin:0 -8px; border-radius:6px; }
+  .row.tap { cursor:pointer; } .row.tap:hover { background:var(--paper); }
+  .row .nm { flex:1; font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .row .n { font-family:Spectral, serif; font-size:14px; width:30px; text-align:right; }
+  .row .note { font-size:11px; color:var(--faint); }
+  .sw { width:9px; height:9px; border-radius:2px; flex:0 0 auto; }
+  .bar { position:relative; display:flex; align-items:center; gap:8px; padding:5px 8px; margin:0 -8px; border-radius:5px; overflow:hidden; }
+  .bar .fill { position:absolute; left:0; top:0; bottom:0; background:rgba(13,13,13,.05); }
+  .bar > *:not(.fill) { position:relative; }
+  .cards { display:flex; gap:8px; margin-top:16px; }
+  .card { flex:1; border:1px solid var(--rule); border-radius:8px; background:var(--paper); padding:9px 11px; }
+  .card .v { font-family:Spectral, serif; font-size:22px; line-height:1.1; }
+  .card .k { font-size:11px; color:var(--muted); margin-top:2px; }
+  .chips { display:flex; flex-wrap:wrap; gap:5px; margin-top:9px; }
+  .chip { font-size:10.5px; font-weight:600; letter-spacing:0.02em; padding:3px 8px; border-radius:999px; border:1px solid var(--rule); background:#fff; color:var(--muted); }
+  .chip.cohort { background:var(--chipBg); border-color:var(--chipBd); }
+  .foot { margin-top:20px; padding-top:14px; border-top:1px solid var(--rule); font-size:11px; line-height:1.7; color:var(--faint); }
+  .back { margin-top:18px; width:100%; font-size:12px; font-weight:600; padding:9px; border-radius:8px; border:1px solid var(--rule); background:#fff; color:var(--muted); }
+  .back:hover { border-color:var(--accent); color:var(--ink); }
+  .back.hq { border-color:#b8e0da; background:#f2fbfa; color:#0f766e; }
+  .back.hq:hover { border-color:#33b0a6; }
+  .legend { display:grid; grid-template-columns:1fr 1fr; gap:5px 12px; margin-top:9px; }
+  .legend div { display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--muted); }
+  .legend .fnrow { cursor:pointer; border-radius:6px; padding:2px 5px; margin:-2px -5px; user-select:none; }
+  .legend .fnrow:hover { background:var(--paper); }
+  .legend .fnrow.on { background:var(--paper); box-shadow:inset 0 0 0 1px var(--accent); color:var(--ink); }
+  .legend .fnrow.off { opacity:0.42; }
+  .legend .fnrow .cnt { margin-left:auto; font-size:10px; opacity:0.55; font-variant-numeric:tabular-nums; }
+  .fban { display:flex; align-items:center; gap:8px; font-size:11.5px; color:var(--muted); background:var(--paper); border:1px solid var(--rule); border-radius:8px; padding:6px 9px; margin-top:10px; line-height:1.35; }
+  .fban .x { margin-left:auto; font-weight:700; cursor:pointer; }
+  .bar.tap { cursor:pointer; }
+  .bar.tap:hover { background:var(--paper); }
+  .ficon { width:17px; height:17px; flex:0 0 auto; display:inline-flex; vertical-align:-3px; }
+  .role { display:flex; align-items:flex-start; gap:9px; padding:7px 8px; margin:0 -8px; border-radius:7px; }
+  .role:hover { background:var(--paper); }
+  .role .rb { flex:1; min-width:0; }
+  .role a { font-size:12.5px; line-height:1.35; color:var(--ink); overflow-wrap:break-word; }
+  .role a:hover { color:var(--accent); }
+  .role .meta { font-size:10.5px; color:var(--faint); margin-top:2px; }
+
+  .geolabel { position:absolute; left:0; top:0; display:flex; align-items:baseline; white-space:nowrap; border:1px solid transparent; pointer-events:none; }
+  .geolabel.village { padding:2px 7px; border-radius:999px; font-size:11px; font-weight:600; }
+  .geolabel.island { padding:4px 11px; border-radius:999px; font-size:13px; box-shadow:0 2px 10px rgba(13,13,13,.10); }
+
+  /* ---------------- mobile: a game HUD over a full-bleed board ---------------- */
+  @media (max-width: 900px) {
+    #app { display:block; height:100%; position:relative; }
+    #stage { position:absolute; left:0; right:0; top:0; bottom:var(--sheet); transition:bottom 260ms cubic-bezier(.22,1,.36,1); }
+    #bar { position:absolute; z-index:500; left:0; right:0; top:0; display:block; padding:14px 14px 0; border:none; pointer-events:none; }
+    #bar .head { display:flex; align-items:stretch; gap:8px; }
+    #bar h1, #bar .sub { display:none; }
+    #bar .score { display:flex; align-items:center; gap:10px; padding:8px 14px 8px 12px; border-radius:16px;
+      background:var(--paper); border:2px solid var(--ink); box-shadow:0 3px 0 var(--ink); pointer-events:auto; }
+    #bar .score .v { font-family:Spectral, serif; font-weight:600; font-size:26px; line-height:1; }
+    #bar .score .k { font-size:10px; font-weight:700; line-height:1.25; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); }
+    #bar .status { flex:1; display:flex; flex-direction:column; justify-content:center; padding:7px 12px; border-radius:16px;
+      background:rgba(255,242,238,.94); border:2px solid var(--ink); box-shadow:0 3px 0 var(--ink); pointer-events:auto; }
+    #bar .status .d { font-size:11px; font-weight:800; letter-spacing:.03em; }
+    #bar .status .m { display:flex; gap:9px; margin-top:2px; font-size:10.5px; font-weight:700; }
+    .tools { margin-top:10px; gap:7px; overflow-x:auto; padding:2px 0 4px; pointer-events:auto; scrollbar-width:none; }
+    .tools::-webkit-scrollbar { display:none; }
+    .pill { flex:0 0 auto; padding:9px 15px; font-size:12.5px; font-weight:800; border:2px solid var(--ink);
+      box-shadow:0 3px 0 var(--ink); background:var(--paper); color:var(--ink); min-height:40px; }
+    .pill.on, .pill.solid { background:var(--accent); color:#fff; border-color:var(--ink); }
+    .hint { display:none; }
+    #scrub { position:absolute; z-index:610; left:0; right:0; bottom:var(--sheet); padding:0 16px 12px;
+      border:none; gap:11px; transition:bottom 260ms cubic-bezier(.22,1,.36,1); }
+    #scrub .date, #scrub .count { display:none; }
+    #play { width:46px; height:46px; flex:0 0 46px; border:2px solid var(--ink); box-shadow:0 3px 0 var(--ink); font-size:15px; }
+    input[type=range] { height:28px; }
+    input[type=range]::-webkit-slider-runnable-track { height:8px; border-radius:4px; background:rgba(13,13,13,.14); }
+    input[type=range]::-webkit-slider-thumb { width:28px; height:28px; margin-top:-10px; border:4px solid #fff; box-shadow:0 2px 0 rgba(13,13,13,.22); }
+    #panel { position:absolute; z-index:600; left:0; right:0; bottom:0; width:auto; flex:none; height:var(--sheet);
+      border:none; border-top:2px solid var(--ink); border-radius:20px 20px 0 0; background:var(--paper);
+      box-shadow:0 -6px 24px rgba(13,13,13,.18); padding:0 16px 26px; transition:height 260ms cubic-bezier(.22,1,.36,1); }
+    #handle { display:block; position:sticky; top:0; z-index:2; padding:9px 16px 7px; margin:0 -16px 6px;
+      background:var(--paper); border:none; width:calc(100% + 32px); display:flex; align-items:center; gap:9px; }
+    #handle .t { flex:1; text-align:left; font-size:11.5px; font-weight:800; letter-spacing:.04em; text-transform:uppercase;
+      color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    #handle .a { display:flex; align-items:center; gap:7px; padding:5px 11px; border-radius:999px; background:#fff;
+      border:2px solid var(--ink); box-shadow:0 2px 0 var(--ink); font-size:11px; font-weight:800; letter-spacing:.03em; }
+    .row { padding:11px 13px; margin:0 0 7px; border-radius:14px; background:#fff; border:2px solid var(--ink);
+      box-shadow:0 3px 0 rgba(13,13,13,.14); min-height:52px; }
+    .row .nm { font-size:14px; font-weight:700; }
+    .row .n { font-family:Spectral, serif; font-size:22px; width:auto; }
+    .sw { width:13px; height:13px; border-radius:3px; }
+    .bar { background:#fff; padding:7px 10px; margin:0 0 3px; border-radius:9px; }
+    .big { font-size:44px; }
+    .back { min-height:48px; font-size:13.5px; font-weight:800; border:2px solid var(--ink); border-radius:14px;
+      background:#fff; color:var(--ink); box-shadow:0 3px 0 var(--ink); }
+    .foot, .legend, .cards { display:none; }
+    body.sheet-open { --sheet:74vh; }
+    body.sheet-hidden { --sheet:106px; }
+  }
+  #handle { display:none; }
+  @media (max-width: 900px) { body.sheet-hidden #panelBody { display:none; } }
+</style>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+<symbol id="fn-engineering" viewBox="0 0 24 24">
+    <rect x="6.5" y="11.5" width="11" height="9.5" fill="var(--board-wall, #fbf4f0)" stroke="var(--board-ink, #0d0d0d)" stroke-width="1"></rect>
+    <path d="M4.5 11.5 12 4.6 19.5 11.5Z" fill="currentColor" stroke="var(--board-ink, #0d0d0d)" stroke-width="1" stroke-linejoin="round"></path>
+  </symbol>
+<symbol id="fn-design" viewBox="0 0 24 24">
+    <rect x="6.5" y="11.5" width="11" height="9.5" fill="var(--board-wall, #fbf4f0)" stroke="var(--board-ink, #0d0d0d)" stroke-width="1"></rect>
+    <path d="M4.5 11.5 12 4.6 19.5 11.5Z" fill="currentColor" stroke="var(--board-ink, #0d0d0d)" stroke-width="1" stroke-linejoin="round"></path>
+  </symbol>
+<symbol id="fn-other" viewBox="0 0 24 24">
+    <rect x="6.5" y="11.5" width="11" height="9.5" fill="var(--board-wall, #fbf4f0)" stroke="var(--board-ink, #0d0d0d)" stroke-width="1"></rect>
+    <path d="M4.5 11.5 12 4.6 19.5 11.5Z" fill="currentColor" stroke="var(--board-ink, #0d0d0d)" stroke-width="1" stroke-linejoin="round"></path>
+  </symbol>
+<symbol id="fn-product" viewBox="0 0 24 24">
+    <rect x="4.5" y="12.5" width="15" height="8.5" fill="var(--board-wall, #fbf4f0)" stroke="var(--board-ink, #0d0d0d)" stroke-width="1"></rect>
+    <path d="M2.8 12.5 12 6.2 21.2 12.5Z" fill="currentColor" stroke="var(--board-ink, #0d0d0d)" stroke-width="1" stroke-linejoin="round"></path>
+    <path d="M12 6.2V12.5" stroke="var(--board-ink, #0d0d0d)" stroke-width="0.9" opacity="0.45"></path>
+  </symbol>
+<symbol id="fn-research" viewBox="0 0 24 24">
+    <rect x="9" y="8" width="6" height="13" fill="var(--board-wall, #fbf4f0)" stroke="var(--board-ink, #0d0d0d)" stroke-width="1"></rect>
+    <path d="M7.2 8 12 2.3 16.8 8Z" fill="currentColor" stroke="var(--board-ink, #0d0d0d)" stroke-width="1" stroke-linejoin="round"></path>
+  </symbol>
+<symbol id="fn-marketing" viewBox="0 0 24 24">
+    <rect x="10.3" y="3" width="1.6" height="18" fill="var(--board-wall, #fbf4f0)" stroke="var(--board-ink, #0d0d0d)" stroke-width="1"></rect>
+    <path d="M11.9 4.2 20 7.4 11.9 10.6Z" fill="currentColor" stroke="var(--board-ink, #0d0d0d)" stroke-width="1" stroke-linejoin="round"></path>
+  </symbol>
+<symbol id="fn-sales" viewBox="0 0 24 24">
+    <rect x="6.5" y="13.5" width="11" height="7.5" fill="var(--board-wall, #fbf4f0)" stroke="var(--board-ink, #0d0d0d)" stroke-width="1"></rect>
+    <path d="M3.6 14.2 20.4 14.2 18.4 10.6 5.6 10.6Z" fill="currentColor" stroke="var(--board-ink, #0d0d0d)" stroke-width="1" stroke-linejoin="round"></path>
+  </symbol>
+<symbol id="fn-operations" viewBox="0 0 24 24">
+    <rect x="4.5" y="13.4" width="15" height="7.6" fill="var(--board-wall, #fbf4f0)" stroke="var(--board-ink, #0d0d0d)" stroke-width="1"></rect>
+    <rect x="2.6" y="10.4" width="18.8" height="3" fill="currentColor" stroke="var(--board-ink, #0d0d0d)" stroke-width="1" stroke-linejoin="round"></rect>
+  </symbol>
+<symbol id="village-flag" viewBox="0 0 24 24">
+    <rect x="8.2" y="2.6" width="1.6" height="18.4" fill="var(--board-wall, #fbf4f0)" stroke="var(--board-ink, #0d0d0d)" stroke-width="1"></rect>
+    <rect x="9.8" y="4" width="8.4" height="5.4" fill="currentColor" stroke="var(--board-ink, #0d0d0d)" stroke-width="1"></rect>
+  </symbol>
+<symbol id="vessel-ship" viewBox="0 0 24 24">
+    <rect x="10.2" y="4" width="1.4" height="10.4" fill="var(--board-steel, #8d8f98)" stroke="var(--board-ink, #0d0d0d)" stroke-width="0.9"></rect>
+    <path d="M11.6 5 18.4 13.4H11.6Z" fill="currentColor" stroke="var(--board-ink, #0d0d0d)" stroke-width="1" stroke-linejoin="round"></path>
+    <path d="M3.4 14.6H20.6L17.6 20H6.4Z" fill="var(--board-hull, #4a5560)" stroke="var(--board-ink, #0d0d0d)" stroke-width="1" stroke-linejoin="round"></path>
+  </symbol>
+<symbol id="vessel-rig" viewBox="0 0 24 24">
+    <path d="M9 12.6 12 5.2 15 12.6" fill="none" stroke="var(--board-steel, #8d8f98)" stroke-width="1.4" stroke-linejoin="round"></path>
+    <path d="M12.6 5.6 18 7.6 12.6 9.6Z" fill="currentColor" stroke="var(--board-ink, #0d0d0d)" stroke-width="0.9" stroke-linejoin="round"></path>
+    <rect x="3.6" y="12.4" width="16.8" height="2.8" fill="var(--board-wall, #fbf4f0)" stroke="var(--board-ink, #0d0d0d)" stroke-width="1"></rect>
+    <rect x="6" y="15.2" width="1.6" height="5.4" fill="var(--board-steel, #8d8f98)" stroke="var(--board-ink, #0d0d0d)" stroke-width="0.9"></rect>
+    <rect x="16.4" y="15.2" width="1.6" height="5.4" fill="var(--board-steel, #8d8f98)" stroke="var(--board-ink, #0d0d0d)" stroke-width="0.9"></rect>
+  </symbol>
+<symbol id="connection-arc" viewBox="0 0 24 24">
+    <path d="M3.6 18.4Q12 1.6 20.4 18.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+    <circle cx="3.6" cy="18.4" r="2.2" fill="currentColor"></circle>
+    <circle cx="20.4" cy="18.4" r="2.2" fill="currentColor"></circle>
+  </symbol>
+<symbol id="tile-hex" viewBox="0 0 24 24">
+    <path d="M12 2.6 20.1 7.3V16.7L12 21.4 3.9 16.7V7.3Z" fill="currentColor" stroke="var(--board-ink, #0d0d0d)" stroke-width="1" stroke-linejoin="round"></path>
+  </symbol>
+</svg>
+
+<div id="app">
+  <header id="bar">
+    <div class="head">
+      <div class="score"><span class="v" id="scoreV">0</span><span class="k">open<br />roles</span></div>
+      <div>
+        <h1>Tecland</h1>
+        <div class="sub" id="sub">loading scans…</div>
+      </div>
+      <div class="status">
+        <div class="d" id="statusD">—</div>
+        <div class="m"><span style="color:var(--up)" id="statusUp">▲ 0</span><span style="color:var(--down)" id="statusDown">▼ 0</span><span style="color:var(--faint)" id="statusScan"></span></div>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <div class="tools" id="tools"></div>
+  </header>
+
+  <div id="mid">
+    <div id="stage">
+      <div id="canvas"></div>
+      <div id="labels"></div>
+      <div class="hint l">drag to orbit · scroll to zoom · click an island or a village<br />double-click to fly in</div>
+      <div class="hint r">island size = roles hired in that center<br />village = one company · height = its momentum<br />hazy rim = approximate location</div>
+    </div>
+    <aside id="panel">
+      <button id="handle" aria-label="Toggle panel"><span class="t" id="handleTitle">Biggest centers</span><span class="a"><span id="handleAction">More</span><span id="handleChevron">▲</span></span></button>
+      <div id="panelBody"></div>
+    </aside>
+  </div>
+
+  <footer id="scrub">
+    <button id="play">▶</button>
+    <div class="date" id="scrubDate">—</div>
+    <input type="range" id="range" min="0" max="1" step="1" value="0" />
+    <div class="count" id="scrubCount"></div>
+  </footer>
+</div>
+
+<script type="module">
+import { createGeoBoard, FUNCTION_COLORS } from './geo-board.js';
+import { normalizeBoardData } from './geo-data.js';
+import { loadBoardData } from '../loader.js';
+
+const FN_LABELS = { engineering:'Engineering', product:'Product', design:'Design', research:'Research',
+  sales:'Sales', marketing:'Marketing', operations:'Operations', other:'Other' };
+const FN_KEYS = Object.keys(FN_LABELS);
+const PRESETS = [['world','World'],['na','N. America'],['eu','Europe'],['asia','Asia']];
+/** sprite icon for a function key; anything unknown renders the 'other' house */
+function fnIcon(fn) {
+  const key = FN_KEYS.includes(String(fn || '').toLowerCase()) ? String(fn).toLowerCase() : 'other';
+  return `<svg class="ficon" style="color:${FUNCTION_COLORS[key] || '#54505c'}" aria-hidden="true"><use href="#fn-${key}"></use></svg>`;
+}
+/** live fn-filter counts: companies + centers hiring each function, at the scrubber date */
+function fnStats() {
+  const out = {};
+  FN_KEYS.forEach((f) => (out[f] = { companies: 0, centers: 0 }));
+  board.companies.forEach((co) => {
+    const sn = board.snapshot(co.name, dateIndex);
+    FN_KEYS.forEach((f) => { if ((sn.fns || {})[f] > 0) out[f].companies++; });
+  });
+  board.islands.forEach((is) => {
+    const seen = {};
+    is.companies.forEach((e) => {
+      const sn = board.snapshot(e.name, dateIndex);
+      FN_KEYS.forEach((f) => { if ((sn.fns || {})[f] > 0) seen[f] = 1; });
+    });
+    FN_KEYS.forEach((f) => { out[f].centers += seen[f] || 0; });
+  });
+  return out;
+}
+const SRC = new URLSearchParams(location.search).get('data') === 'sqlite' ? 'sqlite' : 'json';
+const POLL_MS = 120000;
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+const isMobile = () => matchMedia('(max-width: 900px)').matches;
+
+let board = null, data = null, sel = null, playing = false, timer = null, theme = 'day', preset = 'world', dateIndex = 0, sheet = 'peek', showAllRoles = {}, fnSel = null, hqOn = false;
+let sectorStyle = localStorage.getItem('geoboard.sectorStyle') === 'tint' ? 'tint' : 'terrain';
+
+function applySheet() {
+  document.body.classList.toggle('sheet-open', sheet === 'open');
+  document.body.classList.toggle('sheet-hidden', sheet === 'hidden');
+  $('handleTitle').textContent = sheet === 'hidden' ? 'Map'
+    : sel && sel.type === 'company' ? 'Company' : sel ? 'Center' : 'Biggest centers';
+  $('handleAction').textContent = sheet === 'hidden' ? 'List' : sheet === 'peek' ? 'More' : 'Hide';
+  $('handleChevron').textContent = sheet === 'open' ? '▼' : '▲';
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  const [y, m, day] = d.split('-').map(Number);
+  return new Date(y, m - 1, day).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+}
+
+function tools() {
+  const el = $('tools');
+  el.innerHTML = PRESETS.map(([id, label]) => `<button class="pill${preset === id ? ' on' : ''}" data-preset="${id}">${label}</button>`).join('')
+    + `<button class="pill${sectorStyle === 'terrain' ? ' on' : ''}" data-sector="1">${isMobile() ? '⛰' : (sectorStyle === 'terrain' ? 'Terrain' : 'Flat')}</button>`
+    + `<button class="pill" data-theme="1">${isMobile() ? (theme === 'night' ? '☾' : '☀') : (theme === 'night' ? 'Daylight' : 'Night')}</button>`
+    + `<button class="pill solid" data-reset="1">${isMobile() ? '⟲' : 'Reset view'}</button>`;
+}
+
+function chrome() {
+  if (!board) return;
+  const snaps = data.companies.map((co) => board.snapshot(co.name, dateIndex));
+  const total = snaps.reduce((a, s) => a + (s.founded ? s.total : 0), 0);
+  const up = snaps.filter((s) => s.delta > 0).length, down = snaps.filter((s) => s.delta < 0).length;
+  $('sub').textContent = `${data.companies.length} companies · ${data.locatedRoles} located roles · ${board.islands.length} centers`;
+  $('scoreV').textContent = total;
+  $('statusD').textContent = fmtDate(data.dates[dateIndex]);
+  $('statusUp').textContent = '▲ ' + up;
+  $('statusDown').textContent = '▼ ' + down;
+  $('statusScan').textContent = `scan ${dateIndex + 1}/${data.dates.length}`;
+  $('scrubDate').textContent = fmtDate(data.dates[dateIndex]);
+  $('scrubCount').textContent = `scan ${dateIndex + 1} of ${data.dates.length}`;
+  $('range').max = data.dates.length - 1;
+  $('range').value = dateIndex;
+  $('play').textContent = playing ? '❙❙' : '▶';
+  applySheet();
+  return { total, up, down };
+}
+
+function barRow(label, count, pct, fn) {
+  return `<div class="bar tap" data-fn="${esc(fn)}" title="Highlight centers hiring ${FN_LABELS[fn] || fn}"><div class="fill" style="width:${pct}%"></div>${fnIcon(fn)}`
+    + `<div class="nm">${esc(label)}</div><div class="n">${count}</div></div>`;
+}
+
+function summary() {
+  const c = chrome();
+  const fs = fnStats();
+  const rows = board.islands.slice(0, isMobile() ? 19 : 10).map((is) => {
+    const note = is.isWater ? 'flotilla · no land'
+      : (is.companies.length === 1 ? '1 company' : is.companies.length + ' companies') + (is.precision === 'city' ? '' : ' · approximate');
+    const sw = is.isWater ? '#79cfe0' : is.precision === 'city' ? '#bfe07d' : '#d7dfae';
+    return `<div class="row tap" data-island="${is.id}" data-fly="1"><div class="sw" style="background:${sw}"></div>`
+      + `<div class="nm">${esc(is.label)}<div class="note" style="font-weight:400">${note}</div></div><div class="n">${is.roles}</div></div>`;
+  }).join('');
+  const unplaced = (data.unplaced || []).reduce((a, u) => a + u.roles, 0);
+  return `<div class="title">${isMobile() ? 'Biggest centers' : 'Tecland · ' + fmtDate(data.dates[dateIndex])}</div>`
+    + `<div style="display:flex;align-items:baseline;gap:9px;margin-top:12px" class="cards-hide"><div class="big">${c.total}</div>`
+    + `<div style="font-size:12px;color:var(--muted);max-width:150px;line-height:1.4">open roles across ${data.companies.length} companies</div></div>`
+    + `<div class="cards"><div class="card"><div class="v" style="color:var(--up)">${c.up}</div><div class="k">rising this scan</div></div>`
+    + `<div class="card"><div class="v" style="color:var(--down)">${c.down}</div><div class="k">contracting</div></div></div>`
+    + (fnSel ? `<div class="fban">${fnIcon(fnSel)}<span style="flex:1">Filtering <b>${FN_LABELS[fnSel]}</b> — ${fs[fnSel].companies} companies · ${fs[fnSel].centers} centers hiring it. Everything else dimmed.</span><span class="x tap" data-fnclear="1" title="Clear filter">✕</span></div>` : '')
+    + `<div class="h">Roof colors = function${fnSel ? ' — click the active icon to clear' : ''}</div><div class="legend">`
+    + FN_KEYS.map((k) => `<div class="fnrow${fnSel === k ? ' on' : fnSel ? ' off' : ''}" data-fn="${k}" title="${FN_LABELS[k]}: ${fs[k].companies} companies · ${fs[k].centers} centers hiring — click to highlight">${fnIcon(k)}<span>${FN_LABELS[k]}</span><span class="cnt">${fs[k].companies}</span></div>`).join('')
+    + `</div><div class="h">Largest centers</div><div style="margin-top:6px">${rows}</div>`
+    + `<div class="foot">One island per job center, sized by the roles hired there — square-root sized, so a one-role`
+    + ` center is still a place. Ground tint is the company's sector. Contraction digs a valley that never floods.`
+    + ` Bare remote is its own center: no land, a flotilla in open water. Footprints are pinned across the scrubber`
+    + ` because locations exist only at the latest scan.</div>`
+    + `<div style="margin-top:10px;font-size:11px;color:${unplaced ? 'var(--accent)' : 'var(--faint)'}">`
+    + (unplaced ? `${unplaced} roles unplaced (${data.unplaced.map((u) => esc(u.location)).join(', ')})` : 'Every location string resolved — 0 roles unplaced.')
+    + `</div>`;
+}
+
+function islandPanel(id) {
+  const is = board.islands.find((i) => i.id === id);
+  if (!is) return summary();
+  const fns = {};
+  is.companies.forEach((entry) => {
+    const share = entry.roles / Math.max(1, entry.co.locatedRoles || entry.roles);
+    Object.entries(entry.co.jobs_by_fn || {}).forEach(([fn, n]) => {
+      const v = n * share;
+      if (v >= 0.35) fns[fn] = (fns[fn] || 0) + v;
+    });
+  });
+  const rows = Object.entries(fns).sort((a, b) => b[1] - a[1]).map(([fn, v]) => ({ fn, v: Math.max(1, Math.round(v)) }));
+  const top = rows.length ? rows[0].v : 1;
+  const sub = is.isWater ? `remote-eligible roles across ${is.companies.length} companies`
+    : `${is.companies.length === 1 ? '1 company' : is.companies.length + ' companies'} hiring here${is.precision === 'city' ? '' : ' · approximate location'}`;
+  return `<div class="title">${esc(is.label)}</div><div style="font-size:11.5px;color:var(--muted);margin-top:3px">${sub}</div>`
+    + `<div class="big" style="margin-top:12px">${is.roles}</div>`
+    + `<div class="h">Function split here</div><div style="margin-top:8px">`
+    + rows.map((r) => barRow(FN_LABELS[r.fn] || r.fn, r.v, Math.round((r.v / top) * 100), r.fn)).join('')
+    + `</div><div class="h">Hiring here</div><div style="margin-top:8px">`
+    + is.companies.map((entry) => {
+      const places = (entry.co.villages || []).length + (entry.co.stations || []).length;
+      const sw = '#' + (entry.co.sector ? entry.co.sector.tint.toString(16).padStart(6, '0') : 'e2dcd6');
+      return `<div class="row tap" data-company="${esc(entry.name)}"><div class="sw" style="background:${sw}"></div>`
+        + `<div class="nm">${esc(entry.name)}</div><div class="note">${places > 1 ? '+' + (places - 1) : ''}</div><div class="n">${entry.roles}</div></div>`;
+    }).join('')
+    + `</div><div style="margin-top:14px;font-size:11px;line-height:1.6;color:var(--faint)">Resolved from: ${(is.sources || []).map(esc).join(' · ')}</div>`
+    + (is.isWater ? `<button class="back hq" data-hqtoggle="1" title="Draw lines from each company's remote station to its biggest land office (remote-first companies have none)">${hqOn ? 'Hide' : 'Show'} HQ connections${hqOn ? ' ✓' : ''}</button>` : '')
+    + `<button class="back" data-clear="1">Back to the whole board</button>`;
+}
+
+function companyPanel(name) {
+  const co = data.companies.find((c) => c.name === name);
+  if (!co) return summary();
+  const sn = board.snapshot(name, dateIndex);
+  const series = co.history.filter((h) => h.date <= data.dates[dateIndex]).map((h) => h.smoothed);
+  const rows = Object.entries(sn.fns || {}).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  const top = rows.length ? rows[0][1] : 1;
+  let line = '', area = '', cx = 0, cy = 0;
+  if (series.length > 1) {
+    const max = Math.max(...series, 1), min = Math.min(...series, 0), span = Math.max(1, max - min);
+    const pts = series.map((v, i) => [4 + (i / (series.length - 1)) * 282, 50 - ((v - min) / span) * 44]);
+    line = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+    area = line + ` L${pts[pts.length - 1][0].toFixed(1)} 54 L${pts[0][0].toFixed(1)} 54 Z`;
+    cx = pts[pts.length - 1][0]; cy = pts[pts.length - 1][1];
+  }
+  const where = [
+    ...(co.villages || []).map((v) => ({ label:v.island.label, roles:v.roles, kind:v.island.precision === 'city' ? '' : 'approx', id:v.island.id })),
+    ...(co.stations || []).map((v) => ({ label:v.island.label, roles:v.roles, kind:v.isRig ? 'rig' : 'ship', id:v.island.id })),
+  ].sort((a, b) => b.roles - a.roles);
+  const roles = (data.roles || []).filter((r) => (r.company || '') === co.name)
+    .sort((a, b) => String(b.posted_at || '').localeCompare(String(a.posted_at || '')));
+  const MAX_ROLES = 15;
+  const roleRows = (showAllRoles[co.name] ? roles : roles.slice(0, MAX_ROLES)).map((r) => {
+    const meta = [r.location, r.posted_at].filter((x) => x).map(esc).join(' · ');
+    return `<div class="role">${fnIcon(r.department)}<div class="rb"><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.title)}</a>`
+      + (meta ? `<div class="meta">${meta}</div>` : '') + `</div></div>`;
+  }).join('');
+  const delta = !sn.founded ? 'not yet on the board at this scan'
+    : sn.delta > 0 ? `▲ ${sn.delta} since the last scan — its land rises`
+    : sn.delta < 0 ? `▼ ${Math.abs(sn.delta)} since the last scan — its land digs a valley`
+    : 'flat since the last scan';
+  const dcol = sn.delta > 0 ? 'var(--up)' : sn.delta < 0 ? 'var(--down)' : 'var(--muted)';
+  return `<div class="title">${esc(co.name)}</div><div class="chips">`
+    + (co.cohort ? `<span class="chip cohort">${esc(co.cohort)}</span>` : '')
+    + (co.sector ? `<span class="chip">${esc(co.sector.key)}</span>` : '')
+    + `<span class="chip">${esc(co.remote_policy)}</span></div>`
+    + `<div style="display:flex;align-items:baseline;gap:9px;margin-top:14px"><div class="big">${sn.founded ? sn.total : 0}</div>`
+    + `<div style="font-size:12px;line-height:1.4;max-width:150px;color:${dcol}">${delta}</div></div>`
+    + `<svg viewBox="0 0 290 56" style="width:100%;height:56px;display:block;margin-top:14px;overflow:visible">`
+    + `<path d="${area}" fill="rgba(251,91,96,0.10)"></path>`
+    + `<path d="${line}" fill="none" stroke="#fb5b60" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></path>`
+    + `<circle cx="${cx}" cy="${cy}" r="3.5" fill="#fb5b60"></circle></svg>`
+    + `<div style="font-size:11px;color:var(--faint)">roles over ${series.length} scans</div>`
+    + `<div class="h">Buildings by function</div><div style="margin-top:8px">`
+    + rows.map(([fn, v]) => barRow(FN_LABELS[fn] || fn, v, Math.round((v / top) * 100), fn)).join('')
+    + `</div><div class="h">Where</div><div style="margin-top:8px">`
+    + where.map((w) => `<div class="row tap" data-island="${w.id}" data-fly="1"><div class="nm">${esc(w.label)}</div>`
+      + `<div class="note">${w.kind}</div><div class="n">${w.roles}</div></div>`).join('')
+    + `</div><div class="h">Open roles${roles.length ? ' · ' + roles.length : ''}</div><div style="margin-top:8px">`
+    + (roleRows || `<div style="font-size:11.5px;color:var(--faint)">No live roles in this dataset.</div>`)
+    + (roles.length > MAX_ROLES && !showAllRoles[co.name] ? `<div class="row tap" data-rolemore="1" style="font-size:11.5px;color:var(--accent);margin-top:7px">Show all ${roles.length} roles</div>` : '')
+    + `</div><div style="margin-top:14px;font-size:12px;color:var(--muted);line-height:1.6">`
+    + `${co.remote_count} of ${co.total_jobs} roles remote-eligible`
+    + ((co.stations || []).length ? ' — moored in open water on the board' : '')
+    + ` · present in ${where.length} ${where.length === 1 ? 'center' : 'centers'}</div>`
+    + `<button class="back" data-clear="1">Back to the whole board</button>`;
+}
+
+function render() {
+  if (!board) return;
+  chrome();
+  tools();
+  $('panelBody').innerHTML = sel && sel.type === 'island' ? islandPanel(sel.id)
+    : sel && sel.type === 'company' ? companyPanel(sel.id) : summary();
+}
+
+function setDate(i) {
+  board.setDate(i);
+  dateIndex = board.state.dateIndex;
+  render();
+}
+
+async function boot() {
+  try {
+    data = normalizeBoardData(await loadBoardData('world', SRC));
+    dateIndex = data.dates.length - 1;
+    board = createGeoBoard({
+      mount: $('canvas'), labelLayer: $('labels'), data, theme, sectorStyle,
+      autorotate: false, labelBudget: isMobile() ? 6 : 15,
+      onSelect: (s) => { sel = s; hqOn = false; board.setHqLines(false); if (isMobile() && (s || sheet === 'open')) sheet = 'peek'; render(); },
+    });
+    if (fnSel) board.setFnFilter(fnSel);   // rebuild resets state — carry the fn filter
+    render();
+  } catch (e) {
+    console.error(e);
+    $('panelBody').innerHTML = `<div style="font-size:13px;color:var(--accent);line-height:1.6">Board failed to load: ${esc(e.message || e)}</div>`;
+  }
+}
+
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('[data-preset],[data-theme],[data-sector],[data-reset],[data-island],[data-company],[data-rolemore],[data-fn],[data-fnclear],[data-hqtoggle],[data-clear],#handle');
+  if (!t || !board) return;
+  if (t.id === 'handle') { sheet = sheet === 'hidden' ? 'peek' : sheet === 'peek' ? 'open' : 'hidden'; return applySheet(); }
+  if (t.dataset.hqtoggle) { hqOn = !hqOn; board.setHqLines(hqOn); return render(); }
+  if (t.dataset.fnclear) { fnSel = null; board.setFnFilter(null); return render(); }
+  if (t.dataset.fn) {
+    fnSel = fnSel === t.dataset.fn ? null : t.dataset.fn;
+    board.setFnFilter(fnSel);
+    if (sel) board.select(null);   // fn highlight reads best from the whole board
+    return render();
+  }
+  if (t.dataset.preset) { preset = t.dataset.preset; board.preset(preset); if (preset === 'world') board.select(null); return render(); }
+  if (t.dataset.theme) { theme = theme === 'night' ? 'day' : 'night'; board.setTheme(theme); return render(); }
+  if (t.dataset.sector) {
+    sectorStyle = sectorStyle === 'terrain' ? 'tint' : 'terrain';
+    localStorage.setItem('geoboard.sectorStyle', sectorStyle);
+    board.setSectorStyle(sectorStyle);
+    return render();
+  }
+  if (t.dataset.reset) { preset = 'world'; board.reset(); return render(); }
+  if (t.dataset.clear) return board.select(null);
+  if (t.dataset.rolemore) { if (sel && sel.type === 'company') showAllRoles[sel.id] = true; return render(); }
+  if (t.dataset.company) return board.select({ type:'company', id:t.dataset.company });
+  if (t.dataset.island) { board.select({ type:'island', id:t.dataset.island }); if (t.dataset.fly) board.flyTo(t.dataset.island); }
+});
+
+$('range').addEventListener('input', (e) => setDate(Number(e.target.value)));
+$('play').addEventListener('click', () => {
+  if (playing) { clearInterval(timer); playing = false; return render(); }
+  timer = setInterval(() => setDate((board.state.dateIndex + 1) % board.dates.length), 900);
+  playing = true; render();
+});
+addEventListener('resize', () => { if (board) tools(); });
+
+/** rebuild only when the scan count changed — footprints are pinned per build on purpose */
+setInterval(async () => {
+  if (!board) return;
+  try {
+    const next = normalizeBoardData(await loadBoardData('world', SRC));
+    if (next.dates.length === data.dates.length) return;
+    board.destroy();
+    data = next; dateIndex = data.dates.length - 1; sel = null;
+    board = createGeoBoard({
+      mount: $('canvas'), labelLayer: $('labels'), data, theme, sectorStyle,
+      autorotate: false, labelBudget: isMobile() ? 6 : 15,
+      onSelect: (s) => { sel = s; hqOn = false; board.setHqLines(false); if (isMobile() && (s || sheet === 'open')) sheet = 'peek'; render(); },
+    });
+    if (fnSel) board.setFnFilter(fnSel);   // rebuild resets state — carry the fn filter
+    render();
+  } catch (err) { console.warn('[geo-board] refresh failed', err); }
+}, POLL_MS);
+
+boot();
+</script>
+</body>
+</html>

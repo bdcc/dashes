@@ -1,0 +1,84 @@
+{
+  "ui": {
+    "paper": "#fff2ee", "panel": "#ffffff", "rule": "#f2d9d2",
+    "ink": "#0d0d0d", "muted": "#5c5350", "faint": "#6b615d",
+    "accent": "#fb5b60", "chipBg": "#ffe0e8", "chipBorder": "#ffa6bf",
+    "thumb": "#f0cfc7", "up": "#5f9b1f", "down": "#fb5b60"
+  },
+  "functions": {
+    "engineering": "#fb5b60", "product": "#1e83c4", "design": "#fecd44",
+    "research": "#6a4f96", "sales": "#8cc63e", "marketing": "#f5893c",
+    "operations": "#33b0a6", "other": "#54505c"
+  },
+  "functionIcons": {
+    "engineering": "#fn-engineering", "product": "#fn-product", "design": "#fn-design",
+    "research": "#fn-research", "sales": "#fn-sales", "marketing": "#fn-marketing",
+    "operations": "#fn-operations", "other": "#fn-other"
+  },
+  "sectors": [
+    { "key": "AI & agents", "match": "agent|^ai$|ai ", "tint": "#bdd6e8" },
+    { "key": "Infra & dev tools", "match": "infra|dev tools|devops|construction", "tint": "#d2e3b4" },
+    { "key": "Consumer & media", "match": "consumer|media|creator|gaming|sports", "tint": "#fbc5c2" },
+    { "key": "Commerce & fintech", "match": "commerce|marketplace|fintech|financial", "tint": "#fde7ad" },
+    { "key": "Enterprise & GTM", "match": "enterprise|sales|gtm|hr tech|talent|saas|edtech|adtech", "tint": "#d6c9e5" },
+    { "key": "Other", "match": null, "tint": "#e2dcd6" }
+  ],
+  "grass": { "color": "#bfe07d", "mix": 0.58 },
+  "sectorTerrain": {
+    "grassMix": 0.22,
+    "library": "assets/sector-terrain.js",
+    "sectors": [
+      { "key": "AI & agents", "tint": "#7fa8cf", "feature": "peaks", "label": "Alpine peaks", "heightBudget": 0.78 },
+      { "key": "Infra & dev tools", "tint": "#a8b56b", "feature": "terraces", "label": "Stone terraces", "heightBudget": 0.34 },
+      { "key": "Consumer & media", "tint": "#f2907f", "feature": "orchard", "label": "Orchard", "heightBudget": 0.62 },
+      { "key": "Commerce & fintech", "tint": "#f0c04a", "feature": "fields", "label": "Crop fields", "heightBudget": 0.3 },
+      { "key": "Enterprise & GTM", "tint": "#9d84c4", "feature": "conifers", "label": "Conifer stand", "heightBudget": 0.82 },
+      { "key": "Other", "tint": "#b8ab99", "feature": "scrub", "label": "Scrub", "heightBudget": 0.24 }
+    ]
+  },
+  "terrain": {
+    "landFiller": "#cdd995", "rim": "#d7dfae", "hexSide": "#c0a493",
+    "rock": "#b9aaa4", "trunk": "#a98d80", "crown": "#8fb56a", "pole": "#f3ece4",
+    "steel": "#8d8f98", "hull": "#4a5560"
+  },
+  "heights": {
+    "land": 0.62, "rim": 0.5, "hazyRim": 0.4, "sea": 0.3, "deck": 0.72,
+    "growthSwing": 0.55, "valleySwing": 0.2,
+    "heightEase": 0.14, "cameraLerp": 0.07
+  },
+  "layout": {
+    "hexSpacing": 1.7320508075688772,
+    "islandGap": 1.9,
+    "projection": { "x": 0.38, "z": -1.35 },
+    "scalePercentile": 0.12,
+    "relaxIterations": 500,
+    "relaxPush": 0.35,
+    "relaxSpringHome": 0.02,
+    "islandTarget": "clamp(round(2.2 * sqrt(roles)), 3, 40)",
+    "footprintLadder": [[2, 1], [5, 2], [8, 3], [15, 4], [22, 5], ["rest", 7]],
+    "footprintScaleMax": 2.2,
+    "footprintCellCap": 9,
+    "flagMinCells": 2
+  },
+  "arcs": {
+    "topology": "hub-and-spoke from the company's largest node",
+    "color": "#fb5b60",
+    "opacity": 0.75,
+    "pulse": { "base": 0.55, "amplitude": 0.2, "speed": 1.6 },
+    "tube": { "segments": 44, "radius": 0.055, "radialSegments": 6 },
+    "riseFormula": "max(hubY, nodeY) + horizontalDistance * 0.24 + 1.2",
+    "nodeLift": { "village": 0.4, "vessel": 0.3 }
+  },
+  "selectionEmissive": {
+    "companyCap": 0.42, "companySide": 0.18, "islandOtherSide": 0.08,
+    "selectedFlag": 0.34, "relatedFlag": 0.16
+  },
+  "scene": {
+    "day": { "bg": "#fff2ee", "hemi": "#ffffff", "hemiGround": "#d8c8c2", "hemiIntensity": 0.75, "key": "#ffffff", "keyIntensity": 2.1, "fillIntensity": 0.35, "sea": "#79cfe0", "hexSide": "#c0a493", "wall": "#fbf4f0", "grid": "#ffffff", "gridOpacity": 0.34 },
+    "night": { "bg": "#141b24", "hemi": "#9fb6cc", "hemiGround": "#1b2530", "hemiIntensity": 0.45, "key": "#dce8f6", "keyIntensity": 1.35, "fillIntensity": 0.18, "sea": "#2f7f92", "hexSide": "#8ea3b5", "wall": "#e9eef4", "capMix": { "color": "#eaf3fb", "amount": 0.72 }, "grid": "#9fd8e8", "gridOpacity": 0.2 }
+  },
+  "type": {
+    "display": { "family": "Spectral", "weights": [300, 400, 600], "use": "headings and every figure" },
+    "text": { "family": "Karla", "weights": [400, 500, 700, 800], "use": "everything else" }
+  }
+}

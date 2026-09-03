@@ -1,0 +1,64 @@
+/* Board design tokens. Chrome uses these; the 3D layer reads board-tokens.json. */
+:root {
+  /* UI */
+  --board-paper: #fff2ee;
+  --board-panel: #ffffff;
+  --board-rule: #f2d9d2;
+  --board-ink: #0d0d0d;
+  --board-muted: #5c5350;
+  --board-faint: #6b615d;
+  --board-accent: #fb5b60;      /* selection glow + connection arcs */
+  --board-chip-bg: #ffe0e8;
+  --board-chip-border: #ffa6bf;
+  --board-thumb: #f0cfc7;
+  --board-up: #5f9b1f;
+  --board-down: #fb5b60;
+
+  /* function colors — building roofs, flags, sails, legend icons */
+  --fn-engineering: #fb5b60;
+  --fn-product: #1e83c4;
+  --fn-design: #fecd44;
+  --fn-research: #6a4f96;
+  --fn-sales: #8cc63e;
+  --fn-marketing: #f5893c;
+  --fn-operations: #33b0a6;
+  --fn-other: #54505c;
+
+  /* sector tints — ground, mixed 58% into grass before use in 3D */
+  --sector-ai: #bdd6e8;
+  --sector-infra: #d2e3b4;
+  --sector-consumer: #fbc5c2;
+  --sector-commerce: #fde7ad;
+  --sector-enterprise: #d6c9e5;
+  --sector-other: #e2dcd6;
+  --board-grass: #bfe07d;
+  --board-grass-mix: 0.58;              /* tint-only encoding */
+
+  /* alternative: sector as terrain (see LAYOUT_AND_ICONS.md 4.5) — higher contrast */
+  --sector-alt-ai: #7fa8cf;             /* alpine peaks */
+  --sector-alt-infra: #a8b56b;          /* stone terraces */
+  --sector-alt-consumer: #f2907f;       /* orchard */
+  --sector-alt-commerce: #f0c04a;       /* crop fields */
+  --sector-alt-enterprise: #9d84c4;     /* conifer stand */
+  --sector-alt-other: #b8ab99;          /* scrub */
+  --board-grass-mix-alt: 0.22;
+
+  /* terrain + water */
+  --board-land-filler: #cdd995;
+  --board-rim: #d7dfae;
+  --board-hex-side: #c0a493;
+  --board-wall: #fbf4f0;        /* building walls, day */
+  --board-wall-night: #e9eef4;
+  --board-sea: #79cfe0;
+  --board-sea-night: #2f7f92;
+  --board-steel: #8d8f98;       /* rig legs, crane, mast */
+  --board-hull: #4a5560;        /* ship hull */
+  --board-rock: #b9aaa4;
+  --board-trunk: #a98d80;
+  --board-crown: #8fb56a;
+  --board-pole: #f3ece4;
+
+  /* type */
+  --board-font-display: 'Spectral', Georgia, serif;   /* headings + every figure */
+  --board-font-text: 'Karla', system-ui, sans-serif;  /* everything else */
+}
