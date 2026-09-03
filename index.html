@@ -34,7 +34,6 @@
   .card .open { display:inline-block; font-size:13px; font-weight:700; background:var(--accent); color:#fff; border-radius:999px; padding:9px 18px; }
   .card .alt { display:inline-block; font-size:12px; color:var(--faint); margin-top:4px; }
   .card .alt:hover { color:var(--ink); }
-  .note { font-size:11px; color:var(--faint); line-height:1.6; margin-top:36px; max-width:640px; }
   code { font-family:ui-monospace, Menlo, Consolas, monospace; font-size:11px; background:#fff; border:1px solid var(--rule); border-radius:4px; padding:1px 5px; }
 </style>
 </head>
@@ -60,11 +59,6 @@
     </div>
   </div>
 
-  <div class="note">
-    <b>Keep it current</b> — regenerate on the VM and push:<br>
-    <code>python cli.py a16z snapshot && python scripts/export_static_board.py</code> writes <code>flow/data.json</code>, <code>world/data.json</code> and <code>demo/demo.db</code>, then <code>git add . && git commit && git push</code>.<br><br>
-    All data here is <b>public-board aggregates</b> (a16z portfolio snapshots and roles from public career APIs). No applications, no personal data. Host it anywhere static: GitHub Pages, Netlify, a folder on your site. Needs an http server (ES modules) — <code>python -m http.server 8071</code> works locally.
-  </div>
 </div>
 </body>
 </html>

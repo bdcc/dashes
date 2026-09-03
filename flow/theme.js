@@ -42,7 +42,7 @@
   }
 
   function current() {
-    return document.documentElement.getAttribute('data-theme') || 'paper';
+    return document.documentElement.getAttribute('data-theme') || 'pop';
   }
 
   function set(name) {
@@ -55,7 +55,7 @@
   function restore() {
     var saved = null;
     try { saved = localStorage.getItem(STORE_KEY); } catch (e) {}
-    document.documentElement.setAttribute('data-theme', saved || 'paper');
+    document.documentElement.setAttribute('data-theme', saved || 'pop');
   }
 
   /* Build a <div class="seg"> of palette buttons; wire it to re-render. */
