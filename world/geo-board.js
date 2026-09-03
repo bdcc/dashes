@@ -579,11 +579,17 @@ export function createGeoBoard({ mount, labelLayer, data, onSelect, theme = 'day
     data.companies.forEach((co, ci) => {
       const sn = snapAt(co, di);
       co.snap = sn;
+      // live per-place totals at this scan: each village/vessel count scales by
+      // the company's total at the scrubber date over its latest-scan total —
+      // locations exist only at the latest scan, so a place's mix is its share.
+      // At the latest scan the ratio is 1 and live equals the static roles.
+      const r = sn.founded ? sn.total / Math.max(1, snapAt(co, data.dates.length - 1).total) : 0;
       const m = clamp(sn.delta / co.maxAbsDelta, -1, 1);
       const h = sn.founded ? LAND_H + (m > 0 ? m * HEIGHT_SWING : m * VALLEY_SWING) : LAND_H - 0.14;
       co.villages.forEach((v, vi) => {
         v.tiles.forEach((rec) => { rec.target = Math.max(0.42, h); });
         v.height = Math.max(0.42, h);
+        v.live = sn.founded ? Math.round(v.roles * r) : 0;
         if (!sn.founded) return;
         const slots = [];
         v.tiles.forEach((rec) => {
@@ -600,6 +606,7 @@ export function createGeoBoard({ mount, labelLayer, data, onSelect, theme = 'day
       });
       (co.stations || []).forEach((v, vi) => {
         v.deckLift = sn.founded ? m * 0.12 : -0.06;
+        v.live = sn.founded ? Math.round(v.roles * r) : 0;
         if (!sn.founded) return;
         const top = Object.entries(sn.fns || {}).sort((a, b) => b[1] - a[1])[0];
         if (!top) return;
@@ -608,6 +615,13 @@ export function createGeoBoard({ mount, labelLayer, data, onSelect, theme = 'day
         g.userData = { co, island: v.island, station: v };
         builds.add(g);
       });
+    });
+    // island total at the scrubber date = sum of its villages' + vessels' live counts
+    islands.forEach((is) => {
+      let n = 0;
+      (is.villages || []).forEach((v) => { n += v.live || 0; });
+      (is.vessels || []).forEach((v) => { n += v.live || 0; });
+      is.live = n;
     });
     if (state.selected) highlight();
     if (state.fnFilter) applyFnDim();   // rebuilds reset colors — re-apply the dim
@@ -883,7 +897,7 @@ export function createGeoBoard({ mount, labelLayer, data, onSelect, theme = 'day
       el.style.color = on ? '#ffffff' : night ? '#eaf3fb' : '#0d0d0d';
       el.style.borderColor = on ? '#fb5b60' : night ? 'rgba(234,243,251,0.22)' : '#f2d9d2';
       el.innerHTML = `<span style="font-family:Karla,sans-serif;font-weight:700;letter-spacing:0.01em">${it.is.label}</span>`
-        + `<span style="font-family:Spectral,serif;font-weight:600;opacity:${on ? 1 : 0.55};margin-left:7px">${it.is.roles}</span>`
+        + `<span style="font-family:Spectral,serif;font-weight:600;opacity:${on ? 1 : 0.55};margin-left:7px">${it.is.live ?? it.is.roles}</span>`
         + (it.is.precision === 'city' ? '' : `<span style="font-family:Karla,sans-serif;font-size:9px;opacity:0.5;margin-left:6px;letter-spacing:0.06em;text-transform:uppercase">${it.is.precision === 'policy' ? 'policy' : 'approx'}</span>`);
     });
 
@@ -926,7 +940,7 @@ export function createGeoBoard({ mount, labelLayer, data, onSelect, theme = 'day
       el.style.borderColor = isSel ? '#fb5b60' : night ? 'rgba(234,243,251,0.16)' : 'rgba(13,13,13,0.10)';
       const nm = vg.name.length > 16 ? vg.name.slice(0, 15) + '…' : vg.name;
       const d = sn.delta > 0 ? ' ▲' + sn.delta : sn.delta < 0 ? ' ▼' + Math.abs(sn.delta) : '';
-      el.innerHTML = `<span>${nm}</span><span style="opacity:0.62;margin-left:6px;font-family:Spectral,serif">${vg.roles}</span>`
+      el.innerHTML = `<span>${nm}</span><span style="opacity:0.62;margin-left:6px;font-family:Spectral,serif">${vg.live ?? vg.roles}</span>`
         + (d ? `<span style="margin-left:5px;color:${isSel ? '#fff' : sn.delta > 0 ? '#5f9b1f' : '#fb5b60'}">${d}</span>` : '');
     });
   }

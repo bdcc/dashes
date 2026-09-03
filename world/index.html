@@ -366,7 +366,7 @@ function summary() {
       : (is.companies.length === 1 ? '1 company' : is.companies.length + ' companies') + (is.precision === 'city' ? '' : ' · approximate');
     const sw = is.isWater ? '#79cfe0' : is.precision === 'city' ? '#bfe07d' : '#d7dfae';
     return `<div class="row tap" data-island="${is.id}" data-fly="1"><div class="sw" style="background:${sw}"></div>`
-      + `<div class="nm">${esc(is.label)}<div class="note" style="font-weight:400">${note}</div></div><div class="n">${is.roles}</div></div>`;
+      + `<div class="nm">${esc(is.label)}<div class="note" style="font-weight:400">${note}</div></div><div class="n">${is.live ?? is.roles}</div></div>`;
   }).join('');
   const unplaced = (data.unplaced || []).reduce((a, u) => a + u.roles, 0);
   return `<div class="title">${isMobile() ? 'Biggest centers' : 'Tecland · ' + fmtDate(data.dates[dateIndex])}</div>`
@@ -404,15 +404,19 @@ function islandPanel(id) {
   const sub = is.isWater ? `remote-eligible roles across ${is.companies.length} companies`
     : `${is.companies.length === 1 ? '1 company' : is.companies.length + ' companies'} hiring here${is.precision === 'city' ? '' : ' · approximate location'}`;
   return `<div class="title">${esc(is.label)}</div><div style="font-size:11.5px;color:var(--muted);margin-top:3px">${sub}</div>`
-    + `<div class="big" style="margin-top:12px">${is.roles}</div>`
+    + `<div class="big" style="margin-top:12px">${is.live ?? is.roles}</div>`
     + `<div class="h">Function split here</div><div style="margin-top:8px">`
     + rows.map((r) => barRow(FN_LABELS[r.fn] || r.fn, r.v, Math.round((r.v / top) * 100), r.fn)).join('')
     + `</div><div class="h">Hiring here</div><div style="margin-top:8px">`
     + is.companies.map((entry) => {
       const places = (entry.co.villages || []).length + (entry.co.stations || []).length;
       const sw = '#' + (entry.co.sector ? entry.co.sector.tint.toString(16).padStart(6, '0') : 'e2dcd6');
+      /* the company's place in THIS island — live total at the scrubber date */
+      const place = (is.villages || []).find((v) => v.name === entry.name)
+        || (is.vessels || []).find((v) => v.co === entry.co);
+      const live = (place && place.live !== undefined) ? place.live : entry.roles;
       return `<div class="row tap" data-company="${esc(entry.name)}"><div class="sw" style="background:${sw}"></div>`
-        + `<div class="nm">${esc(entry.name)}</div><div class="note">${places > 1 ? '+' + (places - 1) : ''}</div><div class="n">${entry.roles}</div></div>`;
+        + `<div class="nm">${esc(entry.name)}</div><div class="note">${places > 1 ? '+' + (places - 1) : ''}</div><div class="n">${live}</div></div>`;
     }).join('')
     + `</div><div style="margin-top:14px;font-size:11px;line-height:1.6;color:var(--faint)">Resolved from: ${(is.sources || []).map(esc).join(' · ')}</div>`
     + (is.isWater ? `<button class="back hq" data-hqtoggle="1" title="Draw lines from each company's remote station to its biggest land office (remote-first companies have none)">${hqOn ? 'Hide' : 'Show'} HQ connections${hqOn ? ' ✓' : ''}</button>` : '')
@@ -435,8 +439,8 @@ function companyPanel(name) {
     cx = pts[pts.length - 1][0]; cy = pts[pts.length - 1][1];
   }
   const where = [
-    ...(co.villages || []).map((v) => ({ label:v.island.label, roles:v.roles, kind:v.island.precision === 'city' ? '' : 'approx', id:v.island.id })),
-    ...(co.stations || []).map((v) => ({ label:v.island.label, roles:v.roles, kind:v.isRig ? 'rig' : 'ship', id:v.island.id })),
+    ...(co.villages || []).map((v) => ({ label:v.island.label, roles:v.live ?? v.roles, kind:v.island.precision === 'city' ? '' : 'approx', id:v.island.id })),
+    ...(co.stations || []).map((v) => ({ label:v.island.label, roles:v.live ?? v.roles, kind:v.isRig ? 'rig' : 'ship', id:v.island.id })),
   ].sort((a, b) => b.roles - a.roles);
   const roles = (data.roles || []).filter((r) => (r.company || '') === co.name)
     .sort((a, b) => String(b.posted_at || '').localeCompare(String(a.posted_at || '')));
