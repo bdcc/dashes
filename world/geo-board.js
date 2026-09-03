@@ -824,11 +824,21 @@ export function createGeoBoard({ mount, labelLayer, data, onSelect, theme = 'day
   });
   const allVillages = islands.flatMap((is) => is.villages);
   const villageEls = allVillages.map(() => mk('geolabel village'));
+  const isOfVg = new Map();
+  islands.forEach((is) => is.villages.forEach((vg) => isOfVg.set(vg, is)));
+  const mobM = window.matchMedia('(max-width: 900px)');
 
   function updateLabels() {
     const W = labelLayer.clientWidth, H = labelLayer.clientHeight;
     const night = state.theme === 'night';
     const sel = state.selected;
+    /* mobile focus: when an area is focused, fade labels outside it so the
+       focus reads on a small screen (desktop keeps the full map labelled) */
+    let focusIsland = null;
+    if (sel && sel.type === 'island') focusIsland = islands.find((is) => is.id === sel.id) || null;
+    else if (sel && sel.type === 'company') focusIsland = islands.find((is) => is.villages.some((vg) => vg.name === sel.id)) || null;
+    const dimOthers = mobM.matches && !!focusIsland;
+    labelLayer.classList.toggle('focusdim', dimOthers);
     const v = new THREE.Vector3();
     const placed = [];
     const collide = (b) => placed.some((p) => !(b.x2 < p.x1 || b.x1 > p.x2 || b.y2 < p.y1 || b.y1 > p.y2));
@@ -853,7 +863,7 @@ export function createGeoBoard({ mount, labelLayer, data, onSelect, theme = 'day
       el.style.transform = `translate(-50%,-100%) translate(${cx.toFixed(1)}px,${it.y.toFixed(1)}px)`;
       el.style.zIndex = 400;
       const fdim = state.fnFilter ? !islandHasFn(it.is) : false;
-      el.style.opacity = fade * (fdim ? 0.32 : 1);
+      el.style.opacity = fade * (fdim ? 0.32 : 1) * (dimOthers && it.is.id !== focusIsland.id ? 0.07 : 1);
       el.style.background = on ? '#fb5b60' : night ? 'rgba(20,27,36,0.86)' : 'rgba(255,255,255,0.92)';
       el.style.color = on ? '#ffffff' : night ? '#eaf3fb' : '#0d0d0d';
       el.style.borderColor = on ? '#fb5b60' : night ? 'rgba(234,243,251,0.22)' : '#f2d9d2';
@@ -892,7 +902,8 @@ export function createGeoBoard({ mount, labelLayer, data, onSelect, theme = 'day
       el.style.display = fade < 0.05 ? 'none' : 'flex';
       el.style.transform = `translate(-50%,-100%) translate(${it.x.toFixed(1)}px,${it.y.toFixed(1)}px)`;
       el.style.zIndex = 100 + it.rank;
-      el.style.opacity = (sn.founded ? 1 : 0.34) * (isSel || !fdim ? 1 : 0.28) * fade;
+      const oDim = dimOthers && isOfVg.get(vg) !== focusIsland ? 0.07 : 1;
+      el.style.opacity = (sn.founded ? 1 : 0.34) * (isSel || !fdim ? 1 : 0.28) * fade * oDim;
       el.style.fontSize = (isSel ? 12.5 : 11) + 'px';
       el.style.fontWeight = isSel ? 700 : 600;
       el.style.background = isSel ? '#fb5b60' : night ? 'rgba(20,27,36,0.7)' : 'rgba(255,242,238,0.86)';
