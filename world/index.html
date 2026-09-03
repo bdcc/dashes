@@ -51,6 +51,8 @@
   input[type=range]::-moz-range-thumb { width:12px; height:12px; border-radius:50%; background:var(--accent); border:3px solid #fff; }
 
   .h { font-size:11px; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:var(--faint); margin-top:22px; }
+  .h .fnreset { margin-left:auto; cursor:pointer; color:var(--accent); font-weight:700; }
+  .h .fnreset:hover { text-decoration:underline; }
   .big { font-family:Spectral, serif; font-weight:300; font-size:52px; line-height:1; }
   .title { font-family:Spectral, serif; font-weight:600; font-size:22px; letter-spacing:-0.01em; line-height:1.15; }
   .row { display:flex; align-items:center; gap:9px; padding:6px 8px; margin:0 -8px; border-radius:6px; }
@@ -373,7 +375,8 @@ function summary() {
     + `<div class="cards"><div class="card"><div class="v" style="color:var(--up)">${c.up}</div><div class="k">rising this scan</div></div>`
     + `<div class="card"><div class="v" style="color:var(--down)">${c.down}</div><div class="k">contracting</div></div></div>`
     + (fnSel.size ? (function () { const u = anyFnStats(); return `<div class="fban"><span style="flex:1">Filtering <b>${[...fnSel].map((k) => FN_LABELS[k]).join(' + ')}</b> — ${u.companies} companies · ${u.centers} centers hiring any of them. Everything else dimmed.</span><span class="x tap" data-fnclear="1" title="Clear filter">✕</span></div>`; })() : '')
-    + `<div class="h">Roof colors = function${fnSel.size ? ' — click a color to remove it' : ' — click to highlight'}</div><div class="legend">`
+    + (fnSel.size ? `<div class="h" style="display:flex;align-items:center;gap:9px">Roof colors = function — click a color to remove it<span class="fnreset tap" data-fnclear="1" title="Clear filter">Reset all</span></div>` : `<div class="h">Roof colors = function — click to highlight</div>`)
+    + `<div class="legend">`
     + FN_KEYS.map((k) => `<div class="fnrow${fnSel.has(k) ? ' on' : fnSel.size ? ' off' : ''}" data-fn="${k}" title="${FN_LABELS[k]}: ${fs[k].companies} companies · ${fs[k].centers} centers hiring — click to highlight (click again to remove)">${fnIcon(k)}<span>${FN_LABELS[k]}</span><span class="cnt">${fs[k].companies}</span></div>`).join('')
     + `</div><div class="h">Largest centers</div><div style="margin-top:6px">${rows}</div>`
     + `<div class="foot">One island per job center, sized by the roles hired there — square-root sized, so a one-role`

@@ -102,7 +102,7 @@ export function createGeoBoard({ mount, labelLayer, data, onSelect, theme = 'day
     dateIndex: data.dates.length - 1,
     selected: null,           // { type:'company'|'island', id }
     touched: false, idle: performance.now(),
-    fnFilter: null,           // function key — dim everything that doesn't hire it
+    fnFilter: null,           // function keys (multi-select) — dim everything that hires none of them
     hqLines: false,           // water-island panel: lines from stations to each company's HQ
   };
 
@@ -625,11 +625,16 @@ export function createGeoBoard({ mount, labelLayer, data, onSelect, theme = 'day
       const c = new THREE.Color(rec.baseTint);
       // night frosts the caps; with terrain on, village caps keep more of their sector
       if (t.capMix) c.lerp(new THREE.Color(t.capMix.color), t.capMix.amount * (rec.co ? SECTOR_STYLES[state.sectorStyle].nightCapMix : 1));
-      // themed base is what the fn-filter restores to before dimming
-      rec.cap.userData.baseColor = c.clone();
-      rec.side.userData.baseColor = new THREE.Color(t.side);
-      rec.cap.material.color.copy(c);
-      rec.side.material.color.setHex(t.side);
+      // themed base is what the fn-filter restores to before dimming. Stored on
+      // the MATERIALS' own userData — cap and side share one mesh userData
+      // (pick hits), so per-part keys there would collide.
+      const cm = rec.cap.material, sm = rec.side.material;
+      if (!cm.userData) cm.userData = {};
+      if (!sm.userData) sm.userData = {};
+      cm.userData.baseColor = c.clone();
+      sm.userData.baseColor = new THREE.Color(t.side);
+      cm.color.copy(c);
+      sm.color.setHex(t.side);
     });
     applyDate();
   }
@@ -739,6 +744,8 @@ export function createGeoBoard({ mount, labelLayer, data, onSelect, theme = 'day
     return is.companies.some((e) => fnMatch(e.co));
   }
   const FN_DIM = 0.3;
+  const MATCH_BOOST = 1.12;   // matching village caps lift above base so soloing highlights
+  const MATCH_BOOST_LAND = 1.05;
   const rememberBase = (g) => { if (!g) return; g.traverse((o) => { const m = o.material; if (!m) return; if (!m.userData) m.userData = {}; if (!m.userData.base) m.userData.base = m.color.clone(); }); };
   const restoreGroup = (g) => { rememberBase(g); if (!g) return; g.traverse((o) => { const m = o.material; if (m && m.userData.base) m.color.copy(m.userData.base); }); };
   const dimGroup = (g) => { if (!g) return; g.traverse((o) => { const m = o.material; if (m && m.userData.base) m.color.copy(m.userData.base).multiplyScalar(FN_DIM); }); };
@@ -753,8 +760,9 @@ export function createGeoBoard({ mount, labelLayer, data, onSelect, theme = 'day
     const f = state.fnFilter;
     // restore (captures base the first time it runs)
     tileRecs.forEach((rec) => {
-      rec.cap.material.color.copy(rec.cap.userData.baseColor || new THREE.Color(rec.baseTint));
-      rec.side.material.color.copy(rec.side.userData.baseColor || new THREE.Color(THEME[state.theme].side));
+      const cu = rec.cap.material.userData, su = rec.side.material.userData;
+      rec.cap.material.color.copy(cu.baseColor ? cu.baseColor : new THREE.Color(rec.baseTint));
+      rec.side.material.color.copy(su.baseColor ? su.baseColor : new THREE.Color(THEME[state.theme].side));
     });
     builds.children.forEach((g) => { if (g.userData.co) restoreGroup(g); });
     data.companies.forEach((co) => {
@@ -777,6 +785,12 @@ export function createGeoBoard({ mount, labelLayer, data, onSelect, theme = 'day
       (co.stations || []).forEach((v) => dimGroup(v.g));
     });
     hqLines.children.forEach((m) => { if (!(m.userData.co && fnMatch(m.userData.co))) dimGroup(m); });
+    // then lift the matching caps back up so soloing reads as highlight, not
+    // grayout — islands of full-color land on dimmed ground
+    tileRecs.forEach((rec) => {
+      if (rec.co && fnMatch(rec.co)) rec.cap.material.color.multiplyScalar(MATCH_BOOST);
+      else if (!rec.co && islandHasFn(rec.island)) rec.cap.material.color.multiplyScalar(MATCH_BOOST_LAND);
+    });
   }
 
   // ----------------------------------------------------------------- picking
