@@ -361,7 +361,8 @@ function barRow(label, count, pct, fn) {
 function summary() {
   const c = chrome();
   const fs = fnStats();
-  const rows = board.islands.slice(0, isMobile() ? 19 : 10).map((is) => {
+  /* re-rank by the live total each scan so playback keeps "largest" honest */
+  const rows = [...board.islands].sort((a, b) => (b.live ?? b.roles) - (a.live ?? a.roles)).slice(0, isMobile() ? 19 : 10).map((is) => {
     const note = is.isWater ? 'flotilla · no land'
       : (is.companies.length === 1 ? '1 company' : is.companies.length + ' companies') + (is.precision === 'city' ? '' : ' · approximate');
     const sw = is.isWater ? '#79cfe0' : is.precision === 'city' ? '#bfe07d' : '#d7dfae';
@@ -391,10 +392,15 @@ function summary() {
 function islandPanel(id) {
   const is = board.islands.find((i) => i.id === id);
   if (!is) return summary();
+  /* function split at the scrubber date: per-date company fns scaled by the
+     village's static share (mix exists only at the latest scan — same shape
+     as geo-board villageFns) */
   const fns = {};
   is.companies.forEach((entry) => {
+    const sn = board.snapshot(entry.name, dateIndex);
+    if (!sn.founded) return;
     const share = entry.roles / Math.max(1, entry.co.locatedRoles || entry.roles);
-    Object.entries(entry.co.jobs_by_fn || {}).forEach(([fn, n]) => {
+    Object.entries(sn.fns || {}).forEach(([fn, n]) => {
       const v = n * share;
       if (v >= 0.35) fns[fn] = (fns[fn] || 0) + v;
     });
@@ -445,6 +451,10 @@ function companyPanel(name) {
   const roles = (data.roles || []).filter((r) => (r.company || '') === co.name)
     .sort((a, b) => String(b.posted_at || '').localeCompare(String(a.posted_at || '')));
   const MAX_ROLES = 15;
+  /* the flat role list exists only at the latest scan — scale its length by the
+     same live ratio applyDate uses, so the count follows the scrubber */
+  const lastSn = board.snapshot(co.name, data.dates.length - 1);
+  const liveRoles = sn.founded ? Math.round(roles.length * (sn.total / Math.max(1, lastSn.total))) : 0;
   const roleRows = (showAllRoles[co.name] ? roles : roles.slice(0, MAX_ROLES)).map((r) => {
     const meta = [r.location, r.posted_at].filter((x) => x).map(esc).join(' · ');
     return `<div class="role">${fnIcon(r.department)}<div class="rb"><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.title)}</a>`
@@ -471,9 +481,10 @@ function companyPanel(name) {
     + `</div><div class="h">Where</div><div style="margin-top:8px">`
     + where.map((w) => `<div class="row tap" data-island="${w.id}" data-fly="1"><div class="nm">${esc(w.label)}</div>`
       + `<div class="note">${w.kind}</div><div class="n">${w.roles}</div></div>`).join('')
-    + `</div><div class="h">Open roles${roles.length ? ' · ' + roles.length : ''}</div><div style="margin-top:8px">`
-    + (roleRows || `<div style="font-size:11.5px;color:var(--faint)">No live roles in this dataset.</div>`)
-    + (roles.length > MAX_ROLES && !showAllRoles[co.name] ? `<div class="row tap" data-rolemore="1" style="font-size:11.5px;color:var(--accent);margin-top:7px">Show all ${roles.length} roles</div>` : '')
+    + `</div><div class="h">Open roles${liveRoles ? ' · ' + liveRoles : ''}</div><div style="margin-top:8px">`
+    + (sn.founded && liveRoles > 0 ? (roleRows || `<div style="font-size:11.5px;color:var(--faint)">No live roles in this dataset.</div>`)
+      : `<div style="font-size:11.5px;color:var(--faint)">${sn.founded ? 'No live roles at this scan.' : 'Not on the board at this scan.'}</div>`)
+    + (liveRoles > MAX_ROLES && !showAllRoles[co.name] ? `<div class="row tap" data-rolemore="1" style="font-size:11.5px;color:var(--accent);margin-top:7px">Show all ${liveRoles} roles</div>` : '')
     + `</div><div style="margin-top:14px;font-size:12px;color:var(--muted);line-height:1.6">`
     + `${co.remote_count} of ${co.total_jobs} roles remote-eligible`
     + ((co.stations || []).length ? ' — moored in open water on the board' : '')
