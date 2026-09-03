@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  a16z static boards — launcher.
+  Job Flow — a16z startup job visualizations (launcher).
   Two boards, fully static, data loads from this folder:
     · Roles Flow  — the sankey / flow diagram over a16z portfolio roles
     · Tiny World  — 3D cartogram: one island per job center
@@ -10,7 +10,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>a16z static boards</title>
+<title>Job Flow — startup job visualizations</title>
 <link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,600;1,400&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -21,10 +21,12 @@
   html, body { margin:0; min-height:100%; background:var(--paper); color:var(--ink); font-family:Karla, sans-serif; }
   a { color:var(--accent); text-decoration:none; }
   a:hover { color:var(--ink); }
-  .wrap { max-width:860px; margin:0 auto; padding:48px 24px 64px; }
-  .title { font-family:Spectral, serif; font-size:34px; font-weight:600; letter-spacing:-0.02em; }
-  .sub { font-size:15px; color:var(--muted); line-height:1.5; margin-top:6px; }
-  .cards { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:36px; }
+  .wrap { max-width:860px; margin:0 auto; padding:56px 24px 64px; }
+  .eyebrow { font-size:11px; font-weight:700; letter-spacing:0.16em; text-transform:uppercase; color:var(--faint); }
+  .title { font-family:Spectral, serif; font-size:52px; font-weight:600; letter-spacing:-0.03em; line-height:1.04; margin:10px 0 0; }
+  .title::after { content:''; display:block; width:44px; height:4px; border-radius:999px; background:var(--accent); margin-top:16px; }
+  .sub { font-size:15px; color:var(--muted); line-height:1.55; margin-top:16px; max-width:560px; }
+  .cards { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:38px; }
   @media (max-width:700px) { .cards { grid-template-columns:1fr; } }
   .card { display:flex; flex-direction:column; gap:14px; background:var(--panel); border:1px solid var(--rule); border-radius:14px; padding:24px; }
   .card:hover { border-color:var(--chip-bd); }
@@ -39,8 +41,9 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="title">a16z static boards</div>
-  <div class="sub">Two views over public a16z portfolio career data — fully static, served from this folder.</div>
+  <div class="eyebrow">A16z portfolio · Startup hiring</div>
+  <h1 class="title">Job Flow</h1>
+  <div class="sub">Startup job visualizations, live from public a16z portfolio career data — open roles flowing through functions, companies, cities and scans. Fully static. Pick a board:</div>
 
   <div class="cards">
     <div class="card">
