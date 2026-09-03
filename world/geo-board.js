@@ -730,9 +730,10 @@ export function createGeoBoard({ mount, labelLayer, data, onSelect, theme = 'day
   /** does this company hire the filtered function at the current date? */
   function fnMatch(co) {
     const f = state.fnFilter;
-    if (!f) return true;
+    if (!f || !f.length) return true;
     const sn = co.snap || {};
-    return !!(sn.founded && (sn.fns[f] || 0) > 0);
+    /* multi-toggle: company matches when it hires ANY selected function */
+    return !!(sn.founded && f.some((k) => (sn.fns[k] || 0) > 0));
   }
   function islandHasFn(is) {
     return is.companies.some((e) => fnMatch(e.co));
@@ -992,6 +993,7 @@ export function createGeoBoard({ mount, labelLayer, data, onSelect, theme = 'day
       features.visible = SECTOR_STYLES[state.sectorStyle].features;
       tileRecs.forEach((rec) => { rec.baseTint = tintFor(rec.co, rec.cell); });
       applyTheme();
+      if (state.fnFilter) applyFnDim();   // an active fn filter must survive a style switch
     },
     setGraticule(on) { graticule.visible = on !== false; },
     select(sel) {
@@ -1006,7 +1008,8 @@ export function createGeoBoard({ mount, labelLayer, data, onSelect, theme = 'day
       syncHqLines();
     },
     setFnFilter(f) {
-      state.fnFilter = f && typeof f === 'string' ? f : null;
+      /* f = array of function keys (multi-select); empty/null clears */
+      state.fnFilter = Array.isArray(f) && f.length ? f.slice() : null;
       if (state.selected) highlight();
       applyFnDim();
       dimHqLines();   // filter state changed — tubes must follow

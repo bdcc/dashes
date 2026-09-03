@@ -283,14 +283,30 @@ function fnStats() {
   });
   return out;
 }
+/** union stats for a multi-function filter: companies/centers hiring ANY of the selected functions */
+function anyFnStats() {
+  const fns = [...fnSel];
+  const coSet = new Set(), islSet = new Set();
+  board.companies.forEach((co) => {
+    const sn = board.snapshot(co.name, dateIndex);
+    if (sn.founded && fns.some((f) => (sn.fns || {})[f] > 0)) coSet.add(co.name);
+  });
+  board.islands.forEach((is) => {
+    if (is.companies.some((e) => {
+      const sn = board.snapshot(e.name, dateIndex);
+      return sn.founded && fns.some((f) => (sn.fns || {})[f] > 0);
+    })) islSet.add(is.id);
+  });
+  return { companies: coSet.size, centers: islSet.size };
+}
 const SRC = new URLSearchParams(location.search).get('data') === 'sqlite' ? 'sqlite' : 'json';
 const POLL_MS = 120000;
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
 const isMobile = () => matchMedia('(max-width: 900px)').matches;
 
-let board = null, data = null, sel = null, playing = false, timer = null, theme = 'day', preset = 'world', dateIndex = 0, sheet = 'peek', showAllRoles = {}, fnSel = null, hqOn = false;
-let sectorStyle = localStorage.getItem('geoboard.sectorStyle') === 'tint' ? 'tint' : 'terrain';
+let board = null, data = null, sel = null, playing = false, timer = null, theme = 'day', preset = 'world', dateIndex = 0, sheet = 'peek', showAllRoles = {}, fnSel = new Set(), hqOn = false;
+let sectorStyle = 'terrain';   // terrain (sector landforms) is the default view
 
 function applySheet() {
   document.body.classList.toggle('sheet-open', sheet === 'open');
@@ -356,9 +372,9 @@ function summary() {
     + `<div style="font-size:12px;color:var(--muted);max-width:150px;line-height:1.4">open roles across ${data.companies.length} companies</div></div>`
     + `<div class="cards"><div class="card"><div class="v" style="color:var(--up)">${c.up}</div><div class="k">rising this scan</div></div>`
     + `<div class="card"><div class="v" style="color:var(--down)">${c.down}</div><div class="k">contracting</div></div></div>`
-    + (fnSel ? `<div class="fban">${fnIcon(fnSel)}<span style="flex:1">Filtering <b>${FN_LABELS[fnSel]}</b> — ${fs[fnSel].companies} companies · ${fs[fnSel].centers} centers hiring it. Everything else dimmed.</span><span class="x tap" data-fnclear="1" title="Clear filter">✕</span></div>` : '')
-    + `<div class="h">Roof colors = function${fnSel ? ' — click the active icon to clear' : ''}</div><div class="legend">`
-    + FN_KEYS.map((k) => `<div class="fnrow${fnSel === k ? ' on' : fnSel ? ' off' : ''}" data-fn="${k}" title="${FN_LABELS[k]}: ${fs[k].companies} companies · ${fs[k].centers} centers hiring — click to highlight">${fnIcon(k)}<span>${FN_LABELS[k]}</span><span class="cnt">${fs[k].companies}</span></div>`).join('')
+    + (fnSel.size ? (function () { const u = anyFnStats(); return `<div class="fban"><span style="flex:1">Filtering <b>${[...fnSel].map((k) => FN_LABELS[k]).join(' + ')}</b> — ${u.companies} companies · ${u.centers} centers hiring any of them. Everything else dimmed.</span><span class="x tap" data-fnclear="1" title="Clear filter">✕</span></div>`; })() : '')
+    + `<div class="h">Roof colors = function${fnSel.size ? ' — click a color to remove it' : ' — click to highlight'}</div><div class="legend">`
+    + FN_KEYS.map((k) => `<div class="fnrow${fnSel.has(k) ? ' on' : fnSel.size ? ' off' : ''}" data-fn="${k}" title="${FN_LABELS[k]}: ${fs[k].companies} companies · ${fs[k].centers} centers hiring — click to highlight (click again to remove)">${fnIcon(k)}<span>${FN_LABELS[k]}</span><span class="cnt">${fs[k].companies}</span></div>`).join('')
     + `</div><div class="h">Largest centers</div><div style="margin-top:6px">${rows}</div>`
     + `<div class="foot">One island per job center, sized by the roles hired there — square-root sized, so a one-role`
     + ` center is still a place. Ground tint is the company's sector. Contraction digs a valley that never floods.`
@@ -481,7 +497,7 @@ async function boot() {
       autorotate: false, labelBudget: isMobile() ? 6 : 15,
       onSelect: (s) => { sel = s; hqOn = false; board.setHqLines(false); if (isMobile() && (s || sheet === 'open')) sheet = 'peek'; render(); },
     });
-    if (fnSel) board.setFnFilter(fnSel);   // rebuild resets state — carry the fn filter
+    if (fnSel.size) board.setFnFilter([...fnSel]);   // rebuild resets state — carry the fn filter
     render();
   } catch (e) {
     console.error(e);
@@ -494,18 +510,20 @@ document.addEventListener('click', (e) => {
   if (!t || !board) return;
   if (t.id === 'handle') { sheet = sheet === 'hidden' ? 'peek' : sheet === 'peek' ? 'open' : 'hidden'; return applySheet(); }
   if (t.dataset.hqtoggle) { hqOn = !hqOn; board.setHqLines(hqOn); return render(); }
-  if (t.dataset.fnclear) { fnSel = null; board.setFnFilter(null); return render(); }
+  if (t.dataset.fnclear) { fnSel.clear(); board.setFnFilter(null); return render(); }
   if (t.dataset.fn) {
-    fnSel = fnSel === t.dataset.fn ? null : t.dataset.fn;
-    board.setFnFilter(fnSel);
-    if (sel) board.select(null);   // fn highlight reads best from the whole board
+    const k = t.dataset.fn;
+    /* multi-toggle: click a color to solo it (others dim); click again to
+       remove it; selecting more colors reveals all of their tiles */
+    if (fnSel.has(k)) fnSel.delete(k); else fnSel.add(k);
+    board.setFnFilter([...fnSel]);
+    if (sel) board.select(null);   // dims read best from the whole board
     return render();
   }
   if (t.dataset.preset) { preset = t.dataset.preset; board.preset(preset); if (preset === 'world') board.select(null); return render(); }
   if (t.dataset.theme) { theme = theme === 'night' ? 'day' : 'night'; board.setTheme(theme); return render(); }
   if (t.dataset.sector) {
     sectorStyle = sectorStyle === 'terrain' ? 'tint' : 'terrain';
-    localStorage.setItem('geoboard.sectorStyle', sectorStyle);
     board.setSectorStyle(sectorStyle);
     return render();
   }
@@ -537,7 +555,7 @@ setInterval(async () => {
       autorotate: false, labelBudget: isMobile() ? 6 : 15,
       onSelect: (s) => { sel = s; hqOn = false; board.setHqLines(false); if (isMobile() && (s || sheet === 'open')) sheet = 'peek'; render(); },
     });
-    if (fnSel) board.setFnFilter(fnSel);   // rebuild resets state — carry the fn filter
+    if (fnSel.size) board.setFnFilter([...fnSel]);   // rebuild resets state — carry the fn filter
     render();
   } catch (err) { console.warn('[geo-board] refresh failed', err); }
 }, POLL_MS);
