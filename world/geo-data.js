@@ -290,7 +290,6 @@ export const LOCATION_ALIASES = {
     'brazil': 'brazil',
     'brazil - são paulo': 'sao-paulo',
     'brazil, são paulo': 'sao-paulo',
-    'brisbane, australia': 'australia',
     'brisbane, australia; melbourne, australia; western australia, australia': 'melbourne',
     'british columbia, canada; calgary, canada': 'vancouver',
     'brussels': 'belgium',
