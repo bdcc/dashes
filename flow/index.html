@@ -78,6 +78,7 @@
 .co-row .cnt { margin-left: auto; font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
 .co-row.on { background: var(--chip-bg); color: var(--accent); font-weight: 600; }
 .co-row.dim { opacity: 0.4; cursor: not-allowed; }
+.co-row .ck { flex: none; width: 13px; font-size: 11px; color: var(--accent); }
 .co-none { padding: 12px; font-size: 12px; color: var(--faint); }
 .hint { margin: 6px 0 8px; line-height: 1.6; }
 .range { margin-top: 10px; }
@@ -505,6 +506,55 @@ function closeCoDrop() {
   S.coDrop = null; S.coQ = '';
 }
 
+/* ---------- companies-tab picker: multi-select, "All companies" is the empty pick ---------- */
+function coPickLabel() {
+  const n = S.picked.length;
+  if (!n) return 'All companies';
+  return n === 1 ? S.picked[0] : n + ' companies';
+}
+function coPickRows(q) {
+  const d = S.data;
+  if (!d) return '';
+  const s = String(q || '').trim().toLowerCase();
+  const all = !S.picked.length;
+  let out = '<button type="button" class="co-row' + (all ? ' on' : '') + '" data-copickall="1">'
+    + '<span class="ck">' + (all ? '✓' : '') + '</span>'
+    + '<span class="nm">All companies</span><span class="cnt">' + d.companies.length + '</span></button>';
+  out += d.companies.slice().sort((a, b) => b.total_jobs - a.total_jobs)
+    .filter(c => !s || c.company.toLowerCase().includes(s))
+    .map(c => {
+      const on = S.picked.includes(c.company);
+      return '<button type="button" class="co-row' + (on ? ' on' : '') + '" data-copickco="' + esc(c.company) + '">'
+        + '<span class="ck">' + (on ? '✓' : '') + '</span><span class="nm">' + esc(c.company) + '</span>'
+        + '<span class="cnt">' + (c.total_jobs || 0) + '</span></button>';
+    }).join('');
+  return out;
+}
+function coPickHTML() {
+  const open = S.coDrop === 'co';
+  const n = S.picked.length;
+  const rows = open ? coPickRows(S.coQ) : '';
+  return '<div class="co-drop' + (open ? ' open' : '') + '">'
+    + '<button type="button" class="co-btn" data-codrop="co" aria-expanded="' + open + '" title="Which companies to chart">'
+    + '<i style="background:' + (n ? 'var(--accent)' : 'var(--chip-bd)') + '"></i>'
+    + '<span class="nm">' + esc(coPickLabel()) + '</span><span class="ca">▾</span></button>'
+    + (open
+      ? '<div class="copop"><input class="co-search" data-cosearch="co" placeholder="Find a company" autocomplete="off" value="' + esc(S.coQ) + '">'
+        + '<div class="corows">' + (rows || '<div class="co-none">No companies match</div>') + '</div></div>'
+      : '')
+    + '</div>';
+}
+function coSearchInp() {   /* both shells render a popup — only the visible one can take focus */
+  const sel = (isMobile() ? '#m-copicks' : '#d-copicks') + ' .co-drop.open .co-search';
+  return document.querySelector(sel) || document.querySelector('.co-drop.open .co-search');
+}
+function keepCoSearchFocus() {   /* renderAll rebuilds the popup — put the caret back */
+  const inp = coSearchInp();
+  if (!inp) return;
+  inp.focus(); inp.value = S.coQ;
+  const end = inp.value.length; inp.setSelectionRange(end, end);
+}
+
 /* ---------- state ---------- */
 const S = {
   data: null, err: null, from: 0, to: 0, live: false,
@@ -554,7 +604,7 @@ function filterCount() {
   const f = S.facets;
   return f.cohort.length + f.sector.length + f.work.length + f.city.length + f.source.length + S.picked.length;
 }
-function series(cap) {
+function series() {
   const d = S.data, dates = d.dates, t = RolesFlowTheme.theme(), sc = scope();
   let rows;
   if (S.compare === 'pair') {
@@ -572,7 +622,7 @@ function series(cap) {
   rows = rows.filter(r => r.vals.some(v => v > 0));
   rows.forEach(r => { r.v0 = r.vals[S.from]; r.v1 = r.vals[S.to]; r.peak = Math.max.apply(null, r.vals); });
   rows.sort((p, q) => q.v1 - p.v1 || q.peak - p.peak);
-  return cap ? rows.slice(0, cap) : rows;
+  return rows;   /* never truncated: companies mode charts every company in scope */
 }
 
 /* ---------- timeline ---------- */
@@ -656,21 +706,25 @@ function timelineSVG(mobile) {
 /* ---------- flow (sankey) ---------- */
 function flowSVG(mobile) {
   const d = S.data, t = RolesFlowTheme.theme();
-  const cap = mobile ? (S.compare === 'co' ? 10 : 0) : (S.compare === 'co' ? 14 : 0);
-  const rows = series(cap);
+  const rows = series();
   if (!rows.length) return emptyChart(mobile);
   const W = mobile ? Math.max(240, S.wm - 32) : S.w;
   const a = d.dates[S.from], b = d.dates[S.to];
-  const NW = mobile ? 8 : 9, GAP = mobile ? 10 : 11, VGUT = mobile ? 24 : 28;
+  /* dense = more rows than a fixed-height column holds legibly: grow the column
+     to a label-height pitch (and let the chart scroll) instead of squashing
+     every ribbon down to the floor height */
+  const dense = rows.length > (mobile ? 16 : 24);
+  const NW = mobile ? 8 : 9, GAP = dense ? 7 : (mobile ? 10 : 11), VGUT = mobile ? 24 : 28;
+  const MINH = dense ? (mobile ? 7 : 6) : (mobile ? 3 : 2.5);
   const LX = mobile ? 116 : (W < 620 ? 128 : 172);
   const RX = mobile ? Math.max(LX + 80, W - 42) : Math.max(LX + 120, W - 96);
   const NAMEEND = LX - 6 - VGUT;
   const NAMEMAX = mobile ? Math.max(7, Math.floor((NAMEEND - 2) / 6.6)) : Math.max(8, Math.floor((NAMEEND - 8) / 6.7));
-  const colH = mobile ? 290 : 320;
+  const colH = Math.max(mobile ? 290 : 320, rows.length * (GAP + MINH));
   const TOP = mobile ? 36 : 34;
   const tot = Math.max(rows.reduce((s, x) => s + x.v0, 0), rows.reduce((s, x) => s + x.v1, 0), 1);
   const scale = (colH - GAP * (rows.length - 1)) / tot;
-  const hOf = v => Math.max(mobile ? 3 : 2.5, v * scale);
+  const hOf = v => Math.max(MINH, v * scale);
   const stack = key => { let y = TOP; return rows.map(x => { const h = hOf(x[key]); const o = { y: y, h: h, mid: y + h / 2 }; y += h + GAP; return o; }); };
   const L = stack('v0'), R = stack('v1');
   const H = Math.max(L[L.length - 1].y + L[L.length - 1].h, R[R.length - 1].y + R[R.length - 1].h) + (mobile ? 14 : 20);
@@ -717,8 +771,7 @@ function flowSVG(mobile) {
 /* ---------- ridgeline ---------- */
 function ridgeSVG(mobile) {
   const d = S.data, t = RolesFlowTheme.theme(), dates = d.dates;
-  const cap = mobile ? (S.compare === 'co' ? 8 : 0) : (S.compare === 'co' ? 14 : 0);
-  const rows = series(cap);
+  const rows = series();
   if (!rows.length) return emptyChart(mobile);
   const W = mobile ? Math.max(240, S.wm - 32) : S.w;
   const LX = mobile ? 96 : (W < 620 ? 116 : 158);
@@ -726,8 +779,9 @@ function ridgeSVG(mobile) {
   const plotW = Math.max(mobile ? 90 : 80, W - LX - RGUT);
   const n = Math.max(1, dates.length - 1);
   const X = i => LX + i / n * plotW;
-  const STEP = mobile ? 28 : 30;
-  const AMP = STEP * 2.15;
+  const dense = rows.length > (mobile ? 16 : 24);   /* many bands: tighten the pitch, keep waves inside their own band */
+  const STEP = dense ? (mobile ? 17 : 15) : (mobile ? 28 : 30);
+  const AMP = STEP * (dense ? 1.05 : 2.15);
   const TOP = mobile ? AMP - STEP + 24 : AMP - STEP + 26;
   const NAMEMAX = mobile ? Math.max(7, Math.floor((LX - 14) / 6.6)) : Math.max(8, Math.floor((LX - 16) / 6.7));
   const perBand = ridgeScale() === 'perband';
@@ -781,6 +835,13 @@ function ridgeSVG(mobile) {
     (mobile ? '' : '<text x="' + (LX + plotW + 8) + '" y="' + (TOP - 18) + '" font-size="9.5" font-family="Karla,sans-serif" fill="' + t.faint + '" letter-spacing=".08em">NOW</text>');
 
   return '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" style="display:block">' + win + bands + ticks + '</svg>';
+}
+
+function chartBox(html, mobile) {
+  /* long series (companies mode can be every tracked company) scroll inside their
+     own box so the page — or the mobile deck — keeps a sane height */
+  return '<div style="max-height:' + (mobile ? '58vh' : '72vh') +
+    ';overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch">' + html + '</div>';
 }
 
 function emptyChart(mobile) {
@@ -951,7 +1012,7 @@ function renderAll() {
   const days = Math.round((new Date(b) - new Date(a)) / 86400000);
 
   /* pinned series survives window moves — re-resolve by id */
-  const rows = series(S.compare === 'co' ? 14 : 0);
+  const rows = series();
   if (S.pin && !rows.some(r => r.id === S.pin)) { S.pin = null; S.hover = null; }
   const hoverOK = S.hover && rows.some(r => r.id === S.hover);
   if (!hoverOK && !S.pin) S.hover = null;
@@ -1005,10 +1066,12 @@ function renderAll() {
   $('#m-picker').innerHTML = opts;
   $('#d-picker').value = S.focusCo;
   $('#m-picker').value = S.focusCo;
-  /* pair mode: two custom dropdowns (A and B) drive S.pair */
+  /* pair mode: two custom dropdowns (A and B) drive S.pair;
+     companies mode: one multi-select picker, empty pick = all companies */
   const pairOn = S.compare === 'pair';
-  $('#d-copicks').innerHTML = pairOn ? coDropHTML(0) + coDropHTML(1) : '';
-  $('#m-copicks').innerHTML = pairOn ? coDropHTML(0) + coDropHTML(1) : '';
+  const picksHTML = pairOn ? coDropHTML(0) + coDropHTML(1) : S.compare === 'co' ? coPickHTML() : '';
+  $('#d-copicks').innerHTML = picksHTML;
+  $('#m-copicks').innerHTML = picksHTML;
 
   /* ---- chart switch + headings ---- */
   const ridge = S.chart === 'ridge';
@@ -1026,14 +1089,23 @@ function renderAll() {
     ? '<button type="button" data-ridge="shared"' + (ridgeScale() === 'shared' ? ' class="on"' : '') + '>Shared</button>' +
       '<button type="button" data-ridge="perband"' + (ridgeScale() === 'perband' ? ' class="on"' : '') + '>Per band</button>'
     : '';
+  const coHint = (S.picked.length
+    ? sc.length + (sc.length === 1 ? ' company' : ' companies') + ' charted — the ones you picked. '
+    : 'Every company in scope is charted (' + sc.length + '). Pick a subset from the company menu. ');
   $('#d-hint').textContent = S.compare === 'pair'
     ? 'One band per role type per company, colored by company. Bands share a common vertical scale, so the two companies\' mixes are directly comparable.'
-    : ridge
-      ? 'Each band is one series across every scan; the shaded column is the window you set above. Bands share a common vertical scale, so heights are comparable.'
-      : 'Ribbon thickness is the number of open roles; widening means added, narrowing means cut. Click a bar to pin it.';
+    : S.compare === 'co'
+      ? coHint + (ridge
+          ? 'Each band is one company across every scan; the shaded column is the window you set above.'
+          : 'One ribbon per company, biggest first; widening means added, narrowing means cut. Click a band to pin it.')
+      : ridge
+        ? 'Each band is one series across every scan; the shaded column is the window you set above. Bands share a common vertical scale, so heights are comparable.'
+        : 'Ribbon thickness is the number of open roles; widening means added, narrowing means cut. Click a bar to pin it.';
 
   /* ---- chart + legend ---- */
-  $('#d-chart').innerHTML = ridge ? ridgeSVG(false) : flowSVG(false);
+  const tall = rows.length > (isMobile() ? 14 : 24);   /* long chart: scroll it instead of stretching the page */
+  const dChart = ridge ? ridgeSVG(false) : flowSVG(false);
+  $('#d-chart').innerHTML = tall ? chartBox(dChart, false) : dChart;
   const legend = (S.compare === 'pair'
     ? [{ c: t.pairA, l: S.pair[0] || 'company A' }, { c: t.pairB, l: S.pair[1] || 'company B' }, { c: t.accent, l: 'comparison window' }, { c: t.up, l: 'up over window' }, { c: t.down, l: 'down over window' }]
     : ridge
@@ -1113,9 +1185,11 @@ function renderAll() {
   $('#m-dots').innerHTML = ['Flow', 'Trend', 'Table'].map((p, i) =>
     '<button type="button" class="dot' + (i === S.panel ? ' on' : '') + '" data-panel="' + i + '" title="' + p + '"><span></span></button>').join('');
 
-  $('#m-p0').innerHTML = flowSVG(true);
-  $('#m-p1').innerHTML = ridgeSVG(true);
-  $('#m-p2').innerHTML = tableHTML(t, dates, a, b, rows);
+  const tallM = rows.length > 14;
+  const m0 = flowSVG(true), m1 = ridgeSVG(true), m2 = tableHTML(t, dates, a, b, rows);
+  $('#m-p0').innerHTML = tallM ? chartBox(m0, true) : m0;
+  $('#m-p1').innerHTML = tallM ? chartBox(m1, true) : m1;
+  $('#m-p2').innerHTML = tallM ? chartBox(m2, true) : m2;
 
   syncPanelHs();
 
@@ -1164,8 +1238,7 @@ function detDeltaColor(det) {
 }
 
 function tableHTML(t, dates, a, b, rows) {
-  const total = series(S.compare === 'co' ? 10 : 0).length;
-  const body = rows.slice(0, S.compare === 'co' ? 10 : rows.length).map(r => {
+  const body = rows.map(r => {
     const del = r.v1 - r.v0;
     return '<button type="button" class="trow' + (S.pin === r.id ? ' pinned' : '') + '" data-trow="' + esc(r.id) + '">' +
       '<span class="lab"><i style="background:' + r.color + '"></i><span>' + esc(r.label) + '</span></span>' +
@@ -1175,7 +1248,7 @@ function tableHTML(t, dates, a, b, rows) {
   }).join('');
   return '<div class="table-head"><span>' + (byFunction() ? 'Role type' : 'Company') + '</span><span>Was</span><span>Now</span><span>Chg</span></div>' +
     body +
-    '<p class="table-note">' + (rows.length < total ? 'Top ' + rows.length + ' of ' + total + ' by current openings. ' : '') +
+    '<p class="table-note">All ' + rows.length + ' series in scope, biggest first. ' +
     'Was = ' + fmtDate(a) + ', Now = ' + fmtDate(b) + '.</p>';
 }
 
@@ -1332,9 +1405,25 @@ document.addEventListener('click', e => {
     renderAll();
     return;
   }
+  /* companies-mode picker: multi-select — popup stays open while you tick boxes */
+  const pickAll = e.target.closest('[data-copickall]');
+  const pickCo = e.target.closest('[data-copickco]');
+  if (pickAll || pickCo) {
+    const hadFocus = document.activeElement && document.activeElement.classList
+      && document.activeElement.classList.contains('co-search');
+    if (pickAll) S.picked = [];
+    else {
+      const n = pickCo.dataset.copickco;
+      S.picked = S.picked.includes(n) ? S.picked.filter(x => x !== n) : S.picked.concat([n]);
+    }
+    savePicked(); S.pin = null; S.hover = null;
+    renderAll();
+    if (hadFocus) keepCoSearchFocus();
+    return;
+  }
   const drop = e.target.closest('[data-codrop]');
   if (drop) {
-    const slot = +drop.dataset.codrop;
+    const slot = drop.dataset.codrop === 'co' ? 'co' : +drop.dataset.codrop;
     if (S.coDrop === slot) closeCoDrop();
     else { S.coDrop = slot; S.coQ = ''; }
     renderAll();
@@ -1350,7 +1439,7 @@ document.addEventListener('input', e => {
   if (!cs) return;
   S.coQ = e.target.value;
   renderAll();
-  const inp = document.querySelector('.co-drop.open .co-search');   // rerender rebuilt it — keep focus
+  const inp = coSearchInp();   // rerender rebuilt it — keep focus
   if (inp) { inp.focus(); inp.value = S.coQ; const end = inp.value.length; inp.setSelectionRange(end, end); }
 });
 
