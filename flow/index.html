@@ -474,7 +474,10 @@ const asList = v => Array.isArray(v) ? v
     : (v && typeof v === 'object') ? Object.keys(v).filter(k => v[k]) : [];
 const ridgeScale = () => S.ridgeScale || (S.compare === 'pair' ? 'shared' : (isMobile() ? 'perband' : 'shared'));
 const savePicked = () => { try { localStorage.setItem('rolesFlow.picked', JSON.stringify(S.picked)); } catch (err) {} };
-const savePair = () => { try { localStorage.setItem('rolesFlow.pair', JSON.stringify(S.pair)); } catch (err) {} };
+/* pair2: the old `rolesFlow.pair` key holds the value the removed auto-seed
+   wrote, which is indistinguishable from a real pick — start those visitors
+   from an empty comparison rather than from Anduril vs OpenAI. */
+const savePair = () => { try { localStorage.setItem('rolesFlow.pair2', JSON.stringify(S.pair)); } catch (err) {} };
 
 /* ---------- pair-mode company dropdowns (A + B) ---------- */
 function coDropRows(q) {
@@ -607,6 +610,13 @@ function filterCount() {
   const f = S.facets;
   return f.cohort.length + f.sector.length + f.work.length + f.city.length + f.source.length + S.picked.length;
 }
+/* Companies mode charts one band per company with band height linear in the
+   count, so a single 2.4k-role board sets the scale and the other 340 fall to
+   the 6px floor — the column reads as "only the top two are selected" even
+   though every company is in it. Chart the biggest CO_CAP-1 and fold the rest
+   into one summed band: the ribbon is still a true total, and the tail stops
+   being 300 hairlines. */
+const CO_CAP = 25;
 function series() {
   const d = S.data, dates = d.dates, t = RolesFlowTheme.theme(), sc = scope();
   let rows;
@@ -625,7 +635,18 @@ function series() {
   rows = rows.filter(r => r.vals.some(v => v > 0));
   rows.forEach(r => { r.v0 = r.vals[S.from]; r.v1 = r.vals[S.to]; r.peak = Math.max.apply(null, r.vals); });
   rows.sort((p, q) => q.v1 - p.v1 || q.peak - p.peak);
-  return rows;   /* never truncated: companies mode charts every company in scope */
+  if (S.compare === 'co' && rows.length > CO_CAP) {
+    rows = foldTail(rows, dates, t);
+  }
+  return rows;   /* every company in scope: as a band, or inside the others band */
+}
+function foldTail(rows, dates, t) {
+  const tail = rows.slice(CO_CAP - 1);
+  const vals = dates.map((_, i) => tail.reduce((s, r) => s + r.vals[i], 0));
+  return rows.slice(0, CO_CAP - 1).concat([{
+    id: '__others', label: tail.length + ' others', color: t.faint, vals: vals,
+    v0: vals[S.from], v1: vals[S.to], peak: Math.max.apply(null, vals)
+  }]);
 }
 
 /* ---------- timeline ---------- */
@@ -723,7 +744,11 @@ function flowSVG(mobile) {
   const RX = mobile ? Math.max(LX + 80, W - 42) : Math.max(LX + 120, W - 96);
   const NAMEEND = LX - 6 - VGUT;
   const NAMEMAX = mobile ? Math.max(7, Math.floor((NAMEEND - 2) / 6.6)) : Math.max(8, Math.floor((NAMEEND - 8) / 6.7));
-  const colH = Math.max(mobile ? 290 : 320, rows.length * (GAP + MINH));
+  /* the dense pitch (GAP+MINH a band) is sized for a long tail whose bands all
+     sit on the floor, so a folded companies column of 25 leaves the head almost
+     nothing: keep it tall enough that the biggest boards stay readable */
+  const others = rows.some(r => r.id === '__others');
+  const colH = Math.max(mobile ? 290 : 320, rows.length * (GAP + MINH), others ? (mobile ? 700 : 1200) : 0);
   const TOP = mobile ? 36 : 34;
   const tot = Math.max(rows.reduce((s, x) => s + x.v0, 0), rows.reduce((s, x) => s + x.v1, 0), 1);
   const scale = (colH - GAP * (rows.length - 1)) / tot;
@@ -848,7 +873,8 @@ function chartBox(html, mobile) {
 }
 
 function emptyChart(mobile) {
-  return '<div style="padding:' + (mobile ? '40px 0' : '46px 0') + ';color:var(--faint);font-size:' + (mobile ? '14px' : '13px') + '">No open roles in this scope and window.</div>';
+  const msg = S.compare === 'pair' ? 'Pick two companies above to compare.' : 'No open roles in this scope and window.';
+  return '<div style="padding:' + (mobile ? '40px 0' : '46px 0') + ';color:var(--faint);font-size:' + (mobile ? '14px' : '13px') + '">' + msg + '</div>';
 }
 
 /* ---------- facets ---------- */
@@ -1314,7 +1340,7 @@ function applyData(d) {
   try { const saved = JSON.parse(localStorage.getItem('rolesFlow.folded')); if (saved && typeof saved === 'object') S.folded = saved; } catch (err) {}
   try { const vis = JSON.parse(localStorage.getItem('rolesFlow.facetsVis')); if (vis && typeof vis === 'object') S.facetsVis = Object.assign({}, S.facetsVis, vis); } catch (err) {}
   try { const pk = JSON.parse(localStorage.getItem('rolesFlow.picked')); if (Array.isArray(pk)) S.picked = pk.filter(n => d.companies.some(c => c.company === n)); } catch (err) {}
-  try { const pr = JSON.parse(localStorage.getItem('rolesFlow.pair')); if (Array.isArray(pr)) S.pair = pr.slice(0, 2).filter(n => d.companies.some(c => c.company === n)); } catch (err) {}
+  try { const pr = JSON.parse(localStorage.getItem('rolesFlow.pair2')); if (Array.isArray(pr)) S.pair = pr.slice(0, 2).filter(n => d.companies.some(c => c.company === n)); } catch (err) {}
   renderAll();
 }
 function loadData(path, live) {
@@ -1372,10 +1398,9 @@ function pickTab(compare) {
   S.compare = compare; S.pin = null; S.hover = null; closeCoDrop();
   if (compare === 'pair') {
     S.chart = 'ridge';  /* ridge is pair-native */
-    if (!S.pair.length && S.data) {
-      S.pair = S.data.companies.slice().sort((p, r) => r.total_jobs - p.total_jobs).slice(0, 2).map(c => c.company);
-      savePair();
-    }
+    /* no auto-seed: this used to fill the two slots with the biggest boards
+       (Anduril + OpenAI), which looked like a deliberate selection nobody
+       made. Empty slots read "Choose company" and the chart says what to do. */
   }
   renderAll();
 }
