@@ -569,6 +569,7 @@ const S = {
   facetsVis: { __companies: true, cohort: true, sector: true, work: true, city: true, source: true },
   expanded: {}, folded: {}, hover: null, pin: null,
   ridgeScale: null, // null = default: shared (desktop) / per-band (mobile)
+  othersOpen: false, // companies mode: unfold the "N others" band into the full column
   w: 700, wm: 358, panel: 0, dragX: 0, swiping: false, panelHs: [0, 0, 0],
   filtersOpen: false,
   coDrop: null, coQ: ''   // pair mode: which company dropdown is open (0|1|null) + its search text
@@ -635,10 +636,23 @@ function series() {
   rows = rows.filter(r => r.vals.some(v => v > 0));
   rows.forEach(r => { r.v0 = r.vals[S.from]; r.v1 = r.vals[S.to]; r.peak = Math.max.apply(null, r.vals); });
   rows.sort((p, q) => q.v1 - p.v1 || q.peak - p.peak);
-  if (S.compare === 'co' && rows.length > CO_CAP) {
+  if (S.compare === 'co' && rows.length > CO_CAP && !S.othersOpen) {
     rows = foldTail(rows, dates, t);
   }
   return rows;   /* every company in scope: as a band, or inside the others band */
+}
+/* the grey "N others" band is a door, not a row — clicking it unfolds the tail,
+   and this button is the way back once the band itself is gone */
+function foldBtn(hasOthers, mobile) {
+  if (S.compare !== 'co' || (!hasOthers && !S.othersOpen)) return '';
+  return '<button type="button" data-others="1"' +
+    (mobile ? ' class="sseg" style="flex:none;white-space:nowrap"' : '') + '>' +
+    (S.othersOpen ? 'Fold to top ' + (CO_CAP - 1) : 'Show all companies') + '</button>';
+}
+function toggleOthers() {
+  S.othersOpen = !S.othersOpen;
+  S.pin = null; S.hover = null;
+  renderAll();
 }
 function foldTail(rows, dates, t) {
   const tail = rows.slice(CO_CAP - 1);
@@ -1042,6 +1056,7 @@ function renderAll() {
 
   /* pinned series survives window moves — re-resolve by id */
   const rows = series();
+  const hasOthers = rows.some(r => r.id === '__others');
   if (S.pin && !rows.some(r => r.id === S.pin)) { S.pin = null; S.hover = null; }
   const hoverOK = S.hover && rows.some(r => r.id === S.hover);
   if (!hoverOK && !S.pin) S.hover = null;
@@ -1113,7 +1128,8 @@ function renderAll() {
   $('#d-chart-head').textContent = heads[S.compare];
   $('#d-chart-switch').innerHTML =
     '<button type="button" data-chart="flow"' + (ridge ? '' : ' class="on"') + '>Flow</button>' +
-    '<button type="button" data-chart="ridge"' + (ridge ? ' class="on"' : '') + '>Ridgeline</button>';
+    '<button type="button" data-chart="ridge"' + (ridge ? ' class="on"' : '') + '>Ridgeline</button>' +
+    foldBtn(hasOthers, false);
   $('#d-ridgeseg').innerHTML = ridge
     ? '<button type="button" data-ridge="shared"' + (ridgeScale() === 'shared' ? ' class="on"' : '') + '>Shared</button>' +
       '<button type="button" data-ridge="perband"' + (ridgeScale() === 'perband' ? ' class="on"' : '') + '>Per band</button>'
@@ -1126,7 +1142,8 @@ function renderAll() {
     : S.compare === 'co'
       ? coHint + (ridge
           ? 'Each band is one company across every scan; the shaded column is the window you set above.'
-          : 'One ribbon per company, biggest first; widening means added, narrowing means cut. Click a band to pin it.')
+          : 'One ribbon per company, biggest first; widening means added, narrowing means cut. Click a band to pin it, or the grey one — every company past the top '
+            + (CO_CAP - 1) + ' — to unfold the rest.')
       : ridge
         ? 'Each band is one series across every scan; the shaded column is the window you set above. Bands share a common vertical scale, so heights are comparable.'
         : 'Ribbon thickness is the number of open roles; widening means added, narrowing means cut. Click a bar to pin it.';
@@ -1141,7 +1158,7 @@ function renderAll() {
       ? [{ c: t.accent, l: 'comparison window' }, { c: t.up, l: 'up over window' }, { c: t.down, l: 'down over window' }]
       : [{ c: t.up, l: 'added' }, { c: t.down, l: 'cut' }, { c: t.flat, l: 'unchanged' }]);
   $('#d-legend').innerHTML = legend.map(x => '<span style="display:inline-flex;align-items:center;gap:6px"><i style="background:' + x.c + '"></i>' + x.l + '</span>').join('');
-  $('#m-legend').innerHTML = legend.map(x => '<span style="display:inline-flex;align-items:center;gap:6px;flex:none"><i style="background:' + x.c + '"></i>' + x.l + '</span>').join('');
+  $('#m-legend').innerHTML = legend.map(x => '<span style="display:inline-flex;align-items:center;gap:6px;flex:none"><i style="background:' + x.c + '"></i>' + x.l + '</span>').join('') + foldBtn(hasOthers, true);
 
   /* ---- desktop detail rail ---- */
   const det = detail();
@@ -1415,6 +1432,7 @@ $('#m-tabs').addEventListener('click', e => {
 $('#d-picker').addEventListener('change', e => { S.focusCo = e.target.value; S.pin = null; S.hover = null; renderAll(); });
 $('#m-picker').addEventListener('change', e => { S.focusCo = e.target.value; S.pin = null; renderAll(); });
 $('#d-chart-switch').addEventListener('click', e => {
+  if (e.target.closest('[data-others]')) { toggleOthers(); return; }
   const b = e.target.closest('[data-chart]');
   if (!b) return;
   S.chart = b.dataset.chart; S.pin = null; S.hover = null; renderAll();
@@ -1569,6 +1587,7 @@ $('#d-chart').addEventListener('mousemove', e => {
   if (S.pin) return;
   const el = e.target.closest && e.target.closest('[data-it]');
   const id = el ? el.getAttribute('data-it') : null;
+  if (id === '__others') return;   /* the fold door does not preview: nothing to detail */
   if (id !== S.hover) { S.hover = id; renderAll(); }
 });
 $('#d-chart').addEventListener('mouseleave', () => {
@@ -1578,6 +1597,7 @@ $('#d-chart').addEventListener('click', e => {
   const el = e.target.closest && e.target.closest('[data-it]');
   if (!el) return;
   const id = el.getAttribute('data-it');
+  if (id === '__others') { toggleOthers(); return; }
   S.pin = S.pin === id ? null : id;
   S.hover = id;
   renderAll();
@@ -1601,6 +1621,7 @@ $('#m-p2').addEventListener('click', e => {
   if (S.swiping) return;
   const b = e.target.closest('[data-trow]');
   if (!b) return;
+  if (b.dataset.trow === '__others') { toggleOthers(); return; }
   S.pin = S.pin === b.dataset.trow ? null : b.dataset.trow;
   renderAll();
 });
@@ -1609,9 +1630,13 @@ function tapPin(e) {
   const el = e.target.closest && e.target.closest('[data-it]');
   if (!el) return;
   const id = el.getAttribute('data-it');
+  if (id === '__others') { toggleOthers(); return; }
   S.pin = S.pin === id ? null : id;
   renderAll();
 }
+$('#m-legend').addEventListener('click', e => {
+  if (e.target.closest('[data-others]')) toggleOthers();
+});
 $('#m-ssegs').addEventListener('click', e => {
   const b = e.target.closest('[data-mscale]');
   if (b) { S.ridgeScale = b.dataset.mscale; renderAll(); }
