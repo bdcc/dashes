@@ -290,6 +290,47 @@
   .prefs-card { width: 100%; max-width: none; border-radius: 16px 16px 0 0;
     max-height: 70vh; padding-bottom: calc(18px + env(safe-area-inset-bottom)); }
 }
+
+/* ---------- day stats: hover tooltip + day card ---------- */
+/* the tooltip hangs off <body> with inline left/top: no ancestor of the chart is
+   positioned, and inside the chart it would fight the scroll box */
+.date-tip { position: fixed; z-index: 70; pointer-events: none; display: none;
+  min-width: 190px; max-width: 250px; padding: 10px 12px; border-radius: 10px;
+  background: var(--panel); border: 1px solid var(--rule); box-shadow: 0 8px 24px var(--dim); }
+.date-tip .dtip-head { display: flex; align-items: baseline; gap: 8px; }
+.date-tip .dtip-date { flex: 1; font-family: var(--font-display); font-size: 15px; color: var(--ink); }
+.date-tip .dtip-tot { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.date-tip .dtip-sub { margin-top: 2px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.date-tip .dtip-rows { margin-top: 7px; display: flex; flex-direction: column; gap: 2px; }
+.date-tip .dtip-row { position: relative; display: flex; align-items: center; gap: 7px; padding: 1px 4px; overflow: hidden; }
+.date-tip .dtip-row .bar { position: absolute; left: 0; top: 0; bottom: 0; background: var(--bar); }
+.date-tip .dtip-row .name { position: relative; flex: 1; min-width: 0; font-size: 11.5px; color: var(--muted); }
+.date-tip .dtip-row .n { position: relative; font-size: 11.5px; font-variant-numeric: tabular-nums; color: var(--ink); }
+.date-tip .dtip-mv { margin-top: 7px; padding-top: 6px; border-top: 1px solid var(--rule);
+  display: flex; flex-direction: column; gap: 2px; font-size: 11px; font-variant-numeric: tabular-nums; }
+/* desktop day card — same shape as the mobile detail card, desktop scale */
+#d-daycard { margin-top: 14px; background: var(--panel); border: 1px solid var(--rule);
+  border-radius: 12px; padding: 16px 18px; }
+#d-daycard .ctitle { display: flex; align-items: center; gap: 10px; }
+#d-daycard .ctitle .name { flex: 1; min-width: 0; font-family: var(--font-display); font-size: 17px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#d-daycard .close-pill { flex: none; min-height: 30px; padding: 0 12px; border: 1px solid var(--rule);
+  border-radius: 15px; background: none; color: var(--muted); font-size: 12px; cursor: pointer; }
+#d-daycard .cfig { display: flex; align-items: baseline; gap: 8px; padding: 10px 0 12px;
+  border-bottom: 1px solid var(--rule); margin-bottom: 12px; }
+#d-daycard .cfig .v { font-family: var(--font-display); font-size: 28px; line-height: 1; font-variant-numeric: tabular-nums; }
+#d-daycard .cfig .lab { font-size: 12.5px; color: var(--muted); }
+#d-daycard .cfig .delta { margin-left: auto; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+#d-daycard .ceyebrow { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--faint); margin-bottom: 6px; }
+#d-daycard .crows { display: flex; flex-direction: column; }
+#d-daycard .crow { position: relative; display: flex; align-items: center; gap: 8px; min-height: 28px;
+  padding: 0 6px; overflow: hidden; border-bottom: 1px solid var(--rule); }
+#d-daycard .crow .bar { position: absolute; left: 0; top: 0; bottom: 0; background: var(--bar); }
+#d-daycard .crow .name { position: relative; flex: 1; min-width: 0; font-size: 13px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#d-daycard .crow .cnt { position: relative; font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--muted); }
+#d-daycard .cnote { margin: 10px 0 0; font-size: 11.5px; color: var(--faint); line-height: 1.6; }
 </style>
 </head>
 <body>
@@ -355,6 +396,8 @@
         <div class="legend" id="d-legend" style="margin-top:8px"></div>
       </section>
 
+      <section class="card" id="d-daycard" style="display:none"></section>
+
       <footer class="provenance" id="d-prov"></footer>
     </main>
 
@@ -416,6 +459,8 @@
 
     <section class="card" id="m-card" style="display:none"></section>
 
+    <section class="card" id="m-daycard" style="display:none"></section>
+
     <footer class="provenance" id="m-prov"></footer>
   </main>
 
@@ -441,7 +486,7 @@
     <div class="prefs-head">
       <div>
         <h3>Preferences</h3>
-        <p class="sub">Which facet groups show in the left nav.</p>
+        <p class="sub">Which facet groups show in the left nav, and how the date strip behaves.</p>
       </div>
       <button type="button" class="prefs-x" id="prefs-close" aria-label="Close">✕</button>
     </div>
@@ -478,6 +523,7 @@ const savePicked = () => { try { localStorage.setItem('rolesFlow.picked', JSON.s
    wrote, which is indistinguishable from a real pick — start those visitors
    from an empty comparison rather than from Anduril vs OpenAI. */
 const savePair = () => { try { localStorage.setItem('rolesFlow.pair2', JSON.stringify(S.pair)); } catch (err) {} };
+const saveDayStats = () => { try { localStorage.setItem('rolesFlow.dayStats', JSON.stringify({ hover: S.dayHover, click: S.dayClick })); } catch (err) {} };
 
 /* ---------- pair-mode company dropdowns (A + B) ---------- */
 function coDropRows(q) {
@@ -570,6 +616,8 @@ const S = {
   expanded: {}, folded: {}, hover: null, pin: null,
   ridgeScale: null, // null = default: shared (desktop) / per-band (mobile)
   othersOpen: false, // companies mode: unfold the "N others" band into the full column
+  dayHover: true, dayClick: true,   // prefs: day stats on hover / day card on click
+  hoverDate: null, dayCard: null,   // date index under the cursor / opened in the card
   w: 700, wm: 358, panel: 0, dragX: 0, swiping: false, panelHs: [0, 0, 0],
   filtersOpen: false,
   coDrop: null, coQ: ''   // pair mode: which company dropdown is open (0|1|null) + its search text
@@ -677,6 +725,93 @@ function idxAt(clientX) {
   return clamp(Math.round((clientX - r.left - 12) * n / plot), 0, n);
 }
 function setRange(f, t) { S.from = f; S.to = Math.max(f, t); renderAll(); }
+
+/* ---------- day stats: hover tooltip + click day card ---------- */
+/* One scan across the current scope: total, role-type mix, and what moved since
+   the previous scan. Deliberately independent of the window — the window picks
+   which two dates the board compares, a day is just a day. */
+function dateStats(i) {
+  const d = S.data;
+  if (!d || i == null || i !== Math.floor(i) || i < 0 || i >= d.dates.length) return null;
+  const t = RolesFlowTheme.theme();
+  const dt = d.dates[i], prev = d.dates[Math.max(0, i - 1)];
+  const sc = scope();
+  const total = sc.reduce((s, c) => s + asOf(c, dt), 0);
+  const was = sc.reduce((s, c) => s + asOf(c, prev), 0);
+  const companies = sc.map(c => ({ label: c.company, n: asOf(c, dt), was: asOf(c, prev) }));
+  const delta = total - was;
+  return {
+    i: i, date: dt, prev: prev, first: i === 0,
+    total: total, delta: delta,
+    color: delta > 0 ? t.up : delta < 0 ? t.down : t.muted,
+    fns: FUNCTIONS.map(fn => ({ fn: fn, n: sc.reduce((s, c) => s + fnAsOf(c, dt, fn), 0) }))
+      .filter(x => x.n > 0).sort((p, q) => q.n - p.n),
+    movers: companies.filter(c => c.n !== c.was)
+      .map(c => ({ label: c.label, delta: c.n - c.was, color: c.n - c.was > 0 ? t.up : t.down }))
+      .sort((p, q) => Math.abs(q.delta) - Math.abs(p.delta)),
+    companies: companies.filter(c => c.n > 0).sort((p, q) => q.n - p.n)
+  };
+}
+function dateTipHTML(i) {
+  const s = dateStats(i);
+  if (!s) return '';
+  const max = Math.max(1, ...s.fns.map(f => f.n));
+  const moved = s.first
+    ? '<span style="color:var(--faint)">first scan — nothing before it</span>'
+    : '<span style="color:' + s.color + ';font-weight:600">' + signed(s.delta) + '</span> vs ' + fmtDate(s.prev);
+  const mv = s.movers.length
+    ? s.movers.slice(0, 3).map(m => '<span style="color:' + m.color + '">' + esc(trunc(m.label, 18)) + ' ' + signed(m.delta) + '</span>').join('')
+    : '<span style="color:var(--faint)">no company moved vs ' + fmtDate(s.prev) + '</span>';
+  return '<div class="dtip-head"><span class="dtip-date">' + fmtDate(s.date) + '</span>' +
+    '<span class="dtip-tot">' + s.total + '</span></div>' +
+    '<div class="dtip-sub">roles · ' + moved + '</div>' +
+    '<div class="dtip-rows">' + s.fns.slice(0, 6).map(f =>
+      '<div class="dtip-row"><span class="bar" style="width:' + Math.round(f.n / max * 100) + '%"></span>' +
+      '<span class="name">' + f.fn + '</span><span class="n">' + f.n + '</span></div>').join('') + '</div>' +
+    '<div class="dtip-mv">' + mv + '</div>';
+}
+function dayCardHTML(i) {
+  const s = dateStats(i);
+  if (!s) return '';
+  const top = s.companies.slice(0, 12);
+  const max = Math.max(1, ...top.map(c => c.n));
+  return '<div class="ctitle"><span class="name">' + fmtDate(s.date) + ' · ' + s.total + ' roles</span>' +
+    '<button type="button" class="close-pill" data-dayclose="1">Close</button></div>' +
+    '<div class="cfig"><span class="v">' + s.total + '</span><span class="lab">roles that day</span>' +
+    '<span class="delta" style="color:' + s.color + '">' + (s.first ? '—' : signed(s.delta)) + '</span></div>' +
+    '<div class="ceyebrow">' + (s.first ? 'First scan in the series' : 'Change since ' + fmtDate(s.prev)) + '</div>' +
+    (top.length
+      ? '<div class="crows">' + top.map(c =>
+          '<div class="crow"><span class="bar" style="width:' + Math.round(c.n / max * 100) + '%"></span>' +
+          '<span class="name">' + esc(c.label) + '</span><span class="cnt">' + c.n + '</span></div>').join('') + '</div>'
+      : '<p class="cnote">No companies in scope had roles on ' + fmtDate(s.date) + '.</p>') +
+    '<p class="cnote">Top ' + top.length + ' of ' + s.companies.length + ' companies with roles on ' + fmtDate(s.date) +
+    ', ' + s.fns.length + ' role types. Counts are that single scan — the comparison window above is untouched.</p>';
+}
+function toggleDayCard(i) {
+  S.dayCard = S.dayCard === i ? null : i;
+  hideDateTip();
+  renderAll();
+}
+/* the tooltip is painted directly, never through renderAll(): a re-render would
+   throw away the scroll position of a tall chart box on every pointer move */
+function paintTip(i, x, y) {
+  const el = $('#d-date-tip');
+  if (!el) return;
+  const html = dateTipHTML(i);
+  if (!html) { el.style.display = 'none'; return; }
+  el.innerHTML = html;
+  el.style.display = 'block';
+  const w = el.offsetWidth || 230, h = el.offsetHeight || 150;
+  const vw = window.innerWidth || 1200, vh = window.innerHeight || 800;
+  el.style.left = (x + 16 + w > vw - 8 ? Math.max(8, x - 16 - w) : x + 16) + 'px';
+  el.style.top = (y + 14 + h > vh - 8 ? Math.max(8, y - 14 - h) : y + 14) + 'px';
+}
+function hideDateTip() {
+  const el = $('#d-date-tip');
+  if (el) el.style.display = 'none';
+  S.hoverDate = null;
+}
 
 function timelineSVG(mobile) {
   const d = S.data, dates = d.dates, t = RolesFlowTheme.theme();
@@ -830,7 +965,8 @@ function ridgeSVG(mobile) {
   const gMax = Math.max(1, ...rows.map(r => r.peak));
   const focus = mobile ? S.pin : (S.pin || S.hover);
   const x0 = X(S.from), x1 = X(S.to);
-  const H = TOP + STEP * rows.length + (mobile ? 40 : 44);
+  /* mobile keeps 6px under the date strip, which ends exactly at the viewBox edge otherwise */
+  const H = TOP + STEP * rows.length + (mobile ? 46 : 44);
 
   let bands = '';
   for (let k = rows.length - 1; k >= 0; k--) {
@@ -876,7 +1012,20 @@ function ridgeSVG(mobile) {
     '<text x="' + x1 + '" y="' + (TOP - (mobile ? 17 : 18)) + '" font-size="' + (mobile ? 11 : 10.5) + '" font-family="Karla,sans-serif" fill="' + t.accent + '" text-anchor="end">' + fmtDate(dates[S.to]) + '</text>' +
     (mobile ? '' : '<text x="' + (LX + plotW + 8) + '" y="' + (TOP - 18) + '" font-size="9.5" font-family="Karla,sans-serif" fill="' + t.faint + '" letter-spacing=".08em">NOW</text>');
 
-  return '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" style="display:block">' + win + bands + ticks + '</svg>';
+  /* date strip: a hit lane per scan, sitting below the row of date labels where
+     no band reaches — this is what makes the ridgeline a scrubbable time axis.
+     One rect per date, contiguous across the plot, plus a hairline to read it as
+     an axis rather than empty space. */
+  const cw = plotW / Math.max(1, n);
+  const sy = axisY + 8;
+  let strip = '<line x1="' + LX + '" y1="' + (sy - 3) + '" x2="' + (LX + plotW) + '" y2="' + (sy - 3) + '" stroke="' + t.grid + '" stroke-width="1"/>';
+  dates.forEach((dt, i) => {
+    const cx = X(i);
+    const l = clamp(cx - cw / 2, LX, LX + plotW), r = clamp(cx + cw / 2, LX, LX + plotW);
+    strip += '<rect data-date="' + i + '" x="' + l + '" y="' + sy + '" width="' + Math.max(1, r - l) + '" height="16" fill="transparent" pointer-events="all" style="cursor:crosshair"/>';
+  });
+
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" style="display:block">' + win + bands + ticks + strip + '</svg>';
 }
 
 function chartBox(html, mobile) {
@@ -1137,7 +1286,15 @@ function renderAll() {
   const coHint = (S.picked.length
     ? sc.length + (sc.length === 1 ? ' company' : ' companies') + ' charted — the ones you picked. '
     : 'Every company in scope is charted (' + sc.length + '). Pick a subset from the company menu. ');
-  $('#d-hint').textContent = S.compare === 'pair'
+  /* the day strip is a ridgeline affordance: the sankey's x axis is the two ends
+     of the window, not time, so there the timeline above carries the day stats */
+  const dayHint = (S.dayHover || S.dayClick)
+    ? ' ' + (ridge
+        ? (S.dayHover ? 'Hover the date strip under the chart, or the timeline, for one scan' : 'The date strip under the chart marks each scan')
+        : (S.dayHover ? 'Hover the timeline for one scan' : 'The timeline marks each scan'))
+      + (S.dayClick ? '; click a date to open its card.' : '.')
+    : '';
+  $('#d-hint').textContent = (S.compare === 'pair'
     ? 'One band per role type per company, colored by company. Bands share a common vertical scale, so the two companies\' mixes are directly comparable.'
     : S.compare === 'co'
       ? coHint + (ridge
@@ -1146,7 +1303,7 @@ function renderAll() {
             + (CO_CAP - 1) + ' — to unfold the rest.')
       : ridge
         ? 'Each band is one series across every scan; the shaded column is the window you set above. Bands share a common vertical scale, so heights are comparable.'
-        : 'Ribbon thickness is the number of open roles; widening means added, narrowing means cut. Click a bar to pin it.';
+        : 'Ribbon thickness is the number of open roles; widening means added, narrowing means cut. Click a bar to pin it.') + dayHint;
 
   /* ---- chart + legend ---- */
   const tall = rows.length > (isMobile() ? 14 : 24);   /* long chart: scroll it instead of stretching the page */
@@ -1261,6 +1418,15 @@ function renderAll() {
     mcard.innerHTML = '';
   }
 
+  /* day cards: one builder, rendered into both shells; only one is on screen */
+  const dc = S.dayCard == null ? '' : dayCardHTML(S.dayCard);
+  if (S.dayCard != null && !dc) S.dayCard = null;   /* stale index after a data swap */
+  const dDay = $('#d-daycard'), mDay = $('#m-daycard');
+  dDay.style.display = dc ? '' : 'none';
+  dDay.innerHTML = dc;
+  mDay.style.display = dc ? '' : 'none';
+  mDay.innerHTML = dc;
+
   /* sheet */
   $('#m-facets').innerHTML = facetsHTML(true);
   $('#m-search').value = S.query;
@@ -1358,6 +1524,10 @@ function applyData(d) {
   try { const vis = JSON.parse(localStorage.getItem('rolesFlow.facetsVis')); if (vis && typeof vis === 'object') S.facetsVis = Object.assign({}, S.facetsVis, vis); } catch (err) {}
   try { const pk = JSON.parse(localStorage.getItem('rolesFlow.picked')); if (Array.isArray(pk)) S.picked = pk.filter(n => d.companies.some(c => c.company === n)); } catch (err) {}
   try { const pr = JSON.parse(localStorage.getItem('rolesFlow.pair2')); if (Array.isArray(pr)) S.pair = pr.slice(0, 2).filter(n => d.companies.some(c => c.company === n)); } catch (err) {}
+  try {
+    const ds = JSON.parse(localStorage.getItem('rolesFlow.dayStats'));
+    if (ds && typeof ds === 'object') { S.dayHover = ds.hover !== false; S.dayClick = ds.click !== false; }
+  } catch (err) {}
   renderAll();
 }
 function loadData(path, live) {
@@ -1539,6 +1709,12 @@ const FACET_SUBS = {
   city: 'cities with open roles'
 };
 const FACET_DEFAULTS = { __companies: true, cohort: true, source: true, sector: true, work: true, city: true };
+/* day-strip prefs live in the same panel but a different attribute — they gate
+   behaviour, not which facet groups render, so they must not join the vis branch */
+const DAY_PREFS = [
+  ['hover', 'Hover day stats', 'rolling over the timeline or date strip shows that scan', () => S.dayHover],
+  ['click', 'Click day card', 'clicking a date opens its full breakdown', () => S.dayClick]
+];
 function renderPrefs() {
   $('#prefs-rows').innerHTML = Object.keys(FACET_LABELS).map(k => {
     const on = S.facetsVis[k] !== false;
@@ -1546,6 +1722,12 @@ function renderPrefs() {
       '<span class="box">' + (on ? '✓' : '') + '</span>' +
       '<span class="name">' + FACET_LABELS[k] + '</span>' +
       '<span class="sub">' + FACET_SUBS[k] + '</span></button>';
+  }).join('') + DAY_PREFS.map(p => {
+    const on = !!p[3]();
+    return '<button type="button" class="prefs-row' + (on ? ' on' : '') + '" data-prefs-day="' + p[0] + '">' +
+      '<span class="box">' + (on ? '✓' : '') + '</span>' +
+      '<span class="name">' + p[1] + '</span>' +
+      '<span class="sub">' + p[2] + '</span></button>';
   }).join('');
 }
 function openPrefs() { renderPrefs(); $('#prefs').style.display = ''; }
@@ -1569,9 +1751,20 @@ $('#prefs').addEventListener('click', e => {
     renderPrefs(); renderAll();
     return;
   }
+  const dRow = e.target.closest('[data-prefs-day]');
+  if (dRow) {
+    const hover = dRow.dataset.prefsDay === 'hover';
+    if (hover) S.dayHover = !S.dayHover; else S.dayClick = !S.dayClick;
+    if (!S.dayHover && S.hoverDate !== null) hideDateTip();
+    if (!S.dayClick && S.dayCard !== null) S.dayCard = null;
+    saveDayStats();
+    renderPrefs(); renderAll();
+    return;
+  }
   if (e.target.id === 'prefs-reset') {
     S.facetsVis = Object.assign({}, FACET_DEFAULTS);
     try { localStorage.setItem('rolesFlow.facetsVis', JSON.stringify(S.facetsVis)); } catch (err) {}
+    S.dayHover = true; S.dayClick = true; S.dayCard = null; hideDateTip(); saveDayStats();
     renderPrefs(); renderAll();
   }
 });
@@ -1584,6 +1777,14 @@ $('#d-pills').addEventListener('click', e => {
 
 /* hover + pin on desktop chart */
 $('#d-chart').addEventListener('mousemove', e => {
+  const dEl = e.target.closest && e.target.closest('[data-date]');
+  if (dEl && S.dayHover) {   /* the date strip is an axis, not a band: no preview */
+    const i = +dEl.getAttribute('data-date');
+    S.hoverDate = i;
+    paintTip(i, e.clientX, e.clientY);
+    return;
+  }
+  if (S.hoverDate !== null) hideDateTip();
   if (S.pin) return;
   const el = e.target.closest && e.target.closest('[data-it]');
   const id = el ? el.getAttribute('data-it') : null;
@@ -1591,9 +1792,12 @@ $('#d-chart').addEventListener('mousemove', e => {
   if (id !== S.hover) { S.hover = id; renderAll(); }
 });
 $('#d-chart').addEventListener('mouseleave', () => {
+  if (S.hoverDate !== null) hideDateTip();
   if (!S.pin && S.hover) { S.hover = null; renderAll(); }
 });
 $('#d-chart').addEventListener('click', e => {
+  const dEl = e.target.closest && e.target.closest('[data-date]');
+  if (dEl && S.dayClick) { toggleDayCard(+dEl.getAttribute('data-date')); return; }
   const el = e.target.closest && e.target.closest('[data-it]');
   if (!el) return;
   const id = el.getAttribute('data-it');
@@ -1627,6 +1831,8 @@ $('#m-p2').addEventListener('click', e => {
 });
 function tapPin(e) {
   if (S.swiping) return;
+  const dEl = e.target.closest && e.target.closest('[data-date]');
+  if (dEl && S.dayClick) { toggleDayCard(+dEl.getAttribute('data-date')); return; }
   const el = e.target.closest && e.target.closest('[data-it]');
   if (!el) return;
   const id = el.getAttribute('data-it');
@@ -1643,11 +1849,13 @@ $('#m-ssegs').addEventListener('click', e => {
 });
 
 /* ---------- brush + swipe (window-level) ---------- */
-let _brush = null, _grab = 0, _swipe = null;
+let _brush = null, _grab = 0, _swipe = null, _brushX0 = 0, _brushMoved = false;
 $('#d-timeline').addEventListener('pointerdown', e => {
   const g = e.target.closest && e.target.closest('[data-brush]');
   if (!g) return;
   const side = g.getAttribute('data-brush');
+  _brushMoved = false; _brushX0 = e.clientX;
+  if (S.hoverDate !== null) hideDateTip();   /* a brush drag is not a hover: drop the tooltip */
   if (side === 'body') { _brush = 'move'; _grab = idxAt(e.clientX) - S.from; }
   else _brush = side;
 });
@@ -1655,8 +1863,38 @@ $('#m-timeline').addEventListener('pointerdown', e => {
   const g = e.target.closest && e.target.closest('[data-brush]');
   if (!g) return;
   const side = g.getAttribute('data-brush');
+  _brushMoved = false; _brushX0 = e.clientX;
+  if (S.hoverDate !== null) hideDateTip();   /* a brush drag is not a hover: drop the tooltip */
   if (side === 'body') { _brush = 'move'; _grab = idxAt(e.clientX) - S.from; }
   else _brush = side;
+});
+
+/* the timeline is the one true date axis on the page: rolling over it reads a
+   single scan, and a click that did not drag opens that day's card (a drag still
+   sets the window, so the two never fight) */
+(function mountDateTip() {
+  const el = document.createElement('div');
+  el.id = 'd-date-tip'; el.className = 'date-tip';
+  document.body.appendChild(el);
+})();
+function timelineHover(e) {
+  if (!S.dayHover || _brush || !S.data) return;
+  const i = idxAt(e.clientX);
+  S.hoverDate = i;
+  paintTip(i, e.clientX, e.clientY);
+}
+function timelineClick(e) {
+  if (!S.dayClick || _brushMoved || !S.data) return;
+  if (!(e.target.closest && e.target.closest('[data-brush]'))) return;
+  toggleDayCard(idxAt(e.clientX));
+}
+$('#d-timeline').addEventListener('mousemove', timelineHover);
+$('#d-timeline').addEventListener('mouseleave', () => { if (S.hoverDate !== null) hideDateTip(); });
+$('#d-timeline').addEventListener('click', timelineClick);
+$('#m-timeline').addEventListener('click', timelineClick);
+/* close pills live inside rendered cards, so delegate from the document */
+document.addEventListener('click', e => {
+  if (e.target.closest && e.target.closest('[data-dayclose]')) { S.dayCard = null; renderAll(); }
 });
 $('#m-deck').addEventListener('pointerdown', e => {
   if (e.target.closest && e.target.closest('[data-brush]')) return;
@@ -1664,6 +1902,7 @@ $('#m-deck').addEventListener('pointerdown', e => {
 });
 window.addEventListener('pointermove', e => {
   if (_brush && S.data) {
+    if (Math.abs(e.clientX - _brushX0) > 4) _brushMoved = true;
     const i = idxAt(e.clientX);
     const n = S.data.dates.length - 1;
     if (_brush === 'from') setRange(Math.min(i, S.to), S.to);
