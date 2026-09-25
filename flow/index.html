@@ -691,16 +691,24 @@ function series() {
 }
 /* the grey "N others" band is a door, not a row — clicking it unfolds the tail,
    and this button is the way back once the band itself is gone */
-function foldBtn(hasOthers, mobile) {
+function foldBtn(hasOthers, mobile, n) {
   if (S.compare !== 'co' || (!hasOthers && !S.othersOpen)) return '';
   return '<button type="button" data-others="1"' +
     (mobile ? ' class="sseg" style="flex:none;white-space:nowrap"' : '') + '>' +
-    (S.othersOpen ? 'Fold to top ' + (CO_CAP - 1) : 'Show all companies') + '</button>';
+    (S.othersOpen ? 'View top ' + (CO_CAP - 1) + ' only'
+                  : 'View all ' + (n ? n + ' ' : '') + 'companies') + '</button>';
 }
 function toggleOthers() {
   S.othersOpen = !S.othersOpen;
   S.pin = null; S.hover = null;
   renderAll();
+  /* unfolding multiplies the column height: land on the top of it, folded or
+     unfolded, instead of at whatever offset the shorter column allowed. Both
+     layouts — the fold can be fired from either. */
+  ['#d-chart', '#m-p0'].forEach(sel => {
+    const box = $(sel).firstElementChild;
+    if (box && box.scrollTop !== undefined) box.scrollTop = 0;
+  });
 }
 function foldTail(rows, dates, t) {
   const tail = rows.slice(CO_CAP - 1);
@@ -933,13 +941,16 @@ function flowSVG(mobile) {
     const nOp = dim ? 0.3 : 1;
     out += '<rect data-it="' + esc(x.id) + '" x="' + LX + '" y="' + l.y + '" width="' + NW + '" height="' + l.h + '" fill="' + x.color + '" fill-opacity="' + nOp + '" style="cursor:pointer"/>' +
       '<rect data-it="' + esc(x.id) + '" x="' + RX + '" y="' + r.y + '" width="' + NW + '" height="' + r.h + '" fill="' + x.color + '" fill-opacity="' + nOp + '" style="cursor:pointer"/>';
-    if (mobile) {
-      out += '<rect data-it="' + esc(x.id) + '" x="0" y="' + (l.y - GAP / 2) + '" width="' + LX + '" height="' + (l.h + GAP) + '" fill="transparent" pointer-events="all"/>';
-    }
     out += '<text data-it="' + esc(x.id) + '" x="' + NAMEEND + '" y="' + (l.mid + (mobile ? 4.5 : 4)) + '" text-anchor="end" font-size="' + (mobile ? 13 : 12.5) + '" font-family="Karla,sans-serif" fill="' + (dim ? t.faint : t.ink) + '" style="cursor:pointer">' + esc(trunc(x.label, NAMEMAX)) + '</text>' +
       '<text x="' + (LX - 6) + '" y="' + (l.mid + (mobile ? 4.5 : 4)) + '" text-anchor="end" font-size="' + (mobile ? 12 : 11.5) + '" font-family="Karla,sans-serif" fill="' + t.faint + '" style="font-variant-numeric:tabular-nums">' + x.v0 + '</text>' +
       '<text x="' + (RX + NW + (mobile ? 6 : 8)) + '" y="' + (r.mid + (mobile ? 4.5 : 4)) + '" font-size="' + (mobile ? 13 : 12.5) + '" font-family="Karla,sans-serif" fill="' + (dim ? t.faint : t.ink) + '" style="font-variant-numeric:tabular-nums">' + x.v1 + '</text>';
     if (!mobile && delta !== 0) out += '<text x="' + (RX + NW + 40) + '" y="' + (r.mid + 4) + '" font-size="11.5" font-family="Karla,sans-serif" fill="' + col + '" style="font-variant-numeric:tabular-nums;font-weight:600">' + signed(delta) + '</text>';
+    /* Full-pitch hit strip across the label gutter, painted last so nothing in the
+       row can swallow the pointer. A company under ten roles is a 6px band in a
+       13px pitch — near-impossible to hit on the ribbon alone, so the whole row
+       (name, count, and the space between) is the target. Strips tile the pitch
+       exactly, so no row steals its neighbour's hover. */
+    out += '<rect data-it="' + esc(x.id) + '" x="0" y="' + (l.y - GAP / 2) + '" width="' + LX + '" height="' + (l.h + GAP) + '" fill="transparent" pointer-events="all" style="cursor:pointer"/>';
   });
 
   return '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" style="display:block">' + out + '</svg>';
@@ -1033,6 +1044,29 @@ function chartBox(html, mobile) {
      own box so the page — or the mobile deck — keeps a sane height */
   return '<div style="max-height:' + (mobile ? '58vh' : '72vh') +
     ';overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch">' + html + '</div>';
+}
+
+function setChart(el, html) {
+  /* Every band hover re-renders the chart, and swapping the container the reader
+     is scrolled inside snapped the column back to the top — the biggest company,
+     Anduril. Carry the offset over instead. */
+  const box = el.firstElementChild;
+  const top = box ? box.scrollTop : 0;
+  el.innerHTML = html;
+  const next = el.firstElementChild;
+  if (top && next && next.scrollTop !== undefined) next.scrollTop = top;
+}
+
+function foldRow(mobile, n) {
+  /* same fold door as the switch row, repeated at the foot of the column: with
+     356 companies unfolded that is where the reader is, and the switch row is a
+     long scroll back up. Wrapped in .seg because the button inherits its chrome
+     from that container, which lives at the top of the card, not down here. */
+  if (S.compare !== 'co' || !S.othersOpen) return '';
+  const b = foldBtn(true, mobile, n);
+  if (!b) return '';
+  return '<div style="padding:14px 0 4px;text-align:center">' +
+    '<div class="seg" style="display:inline-flex">' + b + '</div></div>';
 }
 
 function emptyChart(mobile) {
@@ -1278,7 +1312,7 @@ function renderAll() {
   $('#d-chart-switch').innerHTML =
     '<button type="button" data-chart="flow"' + (ridge ? '' : ' class="on"') + '>Flow</button>' +
     '<button type="button" data-chart="ridge"' + (ridge ? ' class="on"' : '') + '>Ridgeline</button>' +
-    foldBtn(hasOthers, false);
+    foldBtn(hasOthers, false, sc.length);
   $('#d-ridgeseg').innerHTML = ridge
     ? '<button type="button" data-ridge="shared"' + (ridgeScale() === 'shared' ? ' class="on"' : '') + '>Shared</button>' +
       '<button type="button" data-ridge="perband"' + (ridgeScale() === 'perband' ? ' class="on"' : '') + '>Per band</button>'
@@ -1307,15 +1341,15 @@ function renderAll() {
 
   /* ---- chart + legend ---- */
   const tall = rows.length > (isMobile() ? 14 : 24);   /* long chart: scroll it instead of stretching the page */
-  const dChart = ridge ? ridgeSVG(false) : flowSVG(false);
-  $('#d-chart').innerHTML = tall ? chartBox(dChart, false) : dChart;
+  const dChart = (ridge ? ridgeSVG(false) : flowSVG(false)) + foldRow(false, sc.length);
+  setChart($('#d-chart'), tall ? chartBox(dChart, false) : dChart);
   const legend = (S.compare === 'pair'
     ? [{ c: t.pairA, l: S.pair[0] || 'company A' }, { c: t.pairB, l: S.pair[1] || 'company B' }, { c: t.accent, l: 'comparison window' }, { c: t.up, l: 'up over window' }, { c: t.down, l: 'down over window' }]
     : ridge
       ? [{ c: t.accent, l: 'comparison window' }, { c: t.up, l: 'up over window' }, { c: t.down, l: 'down over window' }]
       : [{ c: t.up, l: 'added' }, { c: t.down, l: 'cut' }, { c: t.flat, l: 'unchanged' }]);
   $('#d-legend').innerHTML = legend.map(x => '<span style="display:inline-flex;align-items:center;gap:6px"><i style="background:' + x.c + '"></i>' + x.l + '</span>').join('');
-  $('#m-legend').innerHTML = legend.map(x => '<span style="display:inline-flex;align-items:center;gap:6px;flex:none"><i style="background:' + x.c + '"></i>' + x.l + '</span>').join('') + foldBtn(hasOthers, true);
+  $('#m-legend').innerHTML = legend.map(x => '<span style="display:inline-flex;align-items:center;gap:6px;flex:none"><i style="background:' + x.c + '"></i>' + x.l + '</span>').join('') + foldBtn(hasOthers, true, sc.length);
 
   /* ---- desktop detail rail ---- */
   const det = detail();
@@ -1390,9 +1424,12 @@ function renderAll() {
 
   const tallM = rows.length > 14;
   const m0 = flowSVG(true), m1 = ridgeSVG(true), m2 = tableHTML(t, dates, a, b, rows);
-  $('#m-p0').innerHTML = tallM ? chartBox(m0, true) : m0;
-  $('#m-p1').innerHTML = tallM ? chartBox(m1, true) : m1;
-  $('#m-p2').innerHTML = tallM ? chartBox(m2, true) : m2;
+  /* fold row goes in before the box, like the desktop column: a tall deck panel is
+     exactly where a reader has lost the switch row at the top and needs it here */
+  const m0f = m0 + foldRow(true, sc.length);
+  setChart($('#m-p0'), tallM ? chartBox(m0f, true) : m0f);
+  setChart($('#m-p1'), tallM ? chartBox(m1, true) : m1);
+  setChart($('#m-p2'), tallM ? chartBox(m2, true) : m2);
 
   syncPanelHs();
 
@@ -1789,6 +1826,7 @@ $('#d-chart').addEventListener('mousemove', e => {
   const el = e.target.closest && e.target.closest('[data-it]');
   const id = el ? el.getAttribute('data-it') : null;
   if (id === '__others') return;   /* the fold door does not preview: nothing to detail */
+  if (e.target.closest && e.target.closest('[data-others]')) return;   /* nor does the one at the foot: keep the row underneath lit */
   if (id !== S.hover) { S.hover = id; renderAll(); }
 });
 $('#d-chart').addEventListener('mouseleave', () => {
@@ -1798,6 +1836,7 @@ $('#d-chart').addEventListener('mouseleave', () => {
 $('#d-chart').addEventListener('click', e => {
   const dEl = e.target.closest && e.target.closest('[data-date]');
   if (dEl && S.dayClick) { toggleDayCard(+dEl.getAttribute('data-date')); return; }
+  if (e.target.closest && e.target.closest('[data-others]')) { toggleOthers(); return; }
   const el = e.target.closest && e.target.closest('[data-it]');
   if (!el) return;
   const id = el.getAttribute('data-it');
@@ -1833,6 +1872,7 @@ function tapPin(e) {
   if (S.swiping) return;
   const dEl = e.target.closest && e.target.closest('[data-date]');
   if (dEl && S.dayClick) { toggleDayCard(+dEl.getAttribute('data-date')); return; }
+  if (e.target.closest && e.target.closest('[data-others]')) { toggleOthers(); return; }
   const el = e.target.closest && e.target.closest('[data-it]');
   if (!el) return;
   const id = el.getAttribute('data-it');
