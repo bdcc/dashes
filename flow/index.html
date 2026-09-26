@@ -924,8 +924,28 @@ function timelineSVG(mobile) {
      answered that day. A partial crawl is why an August date reads low, and
      the numbers alone can't say that — the crawl's own footprint can. */
   const stripY = mobile ? 118 : 114, stripH = 12;
-  const H = (mobile ? 118 : 112) + 24;
   const axisY = mobile ? 96 : 92;
+  const cov = d.coverage || {}, part = d.partial_dates || [];
+  const p = S.showCoverage ? part.map(dt => dates.indexOf(dt)).filter(i => i >= 0) : [];
+  /* The strip's key has two labels — "COMPANIES REPORTING" on the left, the
+     hatched "PARTIAL CRAWL" swatch right-aligned on the same line. On a phone
+     in portrait there is no room for both on one row and the right label lands
+     on top of the left one, so the key drops to its own row and the SVG grows
+     to hold it. Widths are estimated (Karla, ~0.62em average advance) rather
+     than measured: this runs inside the SVG string, before layout. */
+  const keyFs = mobile ? 10 : 9.5;
+  /* uppercase Karla with .06em tracking runs ~0.72em per glyph, not the 0.62 of
+     mixed-case body text — underestimating it is what let the two labels meet */
+  const estW = s => s.length * keyFs * 0.72;
+  const KEY_GAP = 14;   /* the swatch itself + the space before the label it keys */
+  const KEY_ROOM = 40;  /* clearance we want left over before trusting one row */
+  const stackKey = mobile && p.length > 0 &&
+    estW('COMPANIES REPORTING') + estW('PARTIAL CRAWL') + KEY_GAP + KEY_ROOM > plot;
+  /* the key row sits below the strip, and the SVG has to be tall enough to hold
+     it: previously H stopped at the baseline, so the labels were clipped by the
+     bottom edge and read as colliding with the range line under the chart */
+  const keyBase = stripY + stripH + (mobile ? 11 : 10);
+  const H = keyBase + 12 + (stackKey ? 13 : 0);
 
   const line = vals.map((v, i) => X(i) + ',' + Y(v)).join(' ');
   const win = [];
@@ -972,12 +992,10 @@ function timelineSVG(mobile) {
      bar height is companies that answered against the local high-water mark,
      so it reads as coverage, not as a headcount — the board's own scope grows
      (315 rows a day in August, 791 once watched ATS boards joined). */
-  const cov = d.coverage || {}, part = d.partial_dates || [];
   const pitch = Math.max(1, plot / Math.max(1, n));
   const covRows = dates.map(dt => (cov[dt] && cov[dt].rows) || 0);
   const covMax = (i, win) => Math.max(1, ...covRows.slice(Math.max(0, i - win), i + win + 1));
   const hatchId = 'gaphatch-' + (mobile ? 'm' : 'd');
-  const p = S.showCoverage ? part.map(dt => dates.indexOf(dt)).filter(i => i >= 0) : [];
   let gaps = '', gapKey = '';
   if (p.length) {
     /* the wash first: a partial day reads dimmer than the ones around it, so the
@@ -990,11 +1008,15 @@ function timelineSVG(mobile) {
         '" height="' + (axisY - (mobile ? 6 : 8)) + '" fill="url(#' + hatchId + ')"/>').join('') +
       p.map(i => '<circle cx="' + X(i) + '" cy="' + (mobile ? 6 : 8) + '" r="2" fill="' + t.faint + '"/>').join('');
     /* the strip's own key, right-aligned on it: a hatched date and a tall bar
-       are the same story, and this is the only place it is spelled out */
-    const ky = X(0) + plot;
-    gapKey = '<rect x="' + (ky - (mobile ? 100 : 96)) + '" y="' + (stripY + 2) + '" width="10" height="10" fill="url(#' + hatchId +
+       are the same story, and this is the only place it is spelled out. When it
+       cannot share the row (see stackKey) it drops underneath, left-aligned
+       with the label above it, so neither can land on the other. */
+    const keyY = keyBase + (stackKey ? 13 : 0);
+    const swX = stackKey ? X(0) : X(0) + plot - estW('PARTIAL CRAWL') - 14;
+    const txX = stackKey ? X(0) + 14 : X(0) + plot;
+    gapKey = '<rect x="' + swX + '" y="' + (keyY - 9) + '" width="10" height="10" fill="url(#' + hatchId +
       ')" stroke="' + t.faint + '" stroke-width=".6" stroke-opacity=".5"/>' +
-      '<text x="' + ky + '" y="' + (stripY + stripH + (mobile ? 11 : 10)) + '" text-anchor="end" font-size="' + (mobile ? 10 : 9.5) +
+      '<text x="' + txX + '" y="' + keyY + '" text-anchor="' + (stackKey ? 'start' : 'end') + '" font-size="' + keyFs +
       '" fill="' + t.faint + '" font-family="Karla,sans-serif" letter-spacing=".06em">PARTIAL CRAWL</text>';
   }
   const bars = S.showCoverage ? covRows.map((rows, i) => {
@@ -1010,7 +1032,7 @@ function timelineSVG(mobile) {
     '<polyline points="' + line + '" fill="none" stroke="' + t.muted + '" stroke-width="' + (mobile ? 1.6 : 1.4) + '" stroke-linejoin="round"/>' +
     '<line x1="' + X(0) + '" y1="' + axisY + '" x2="' + (X(0) + plot) + '" y2="' + axisY + '" stroke="' + t.axis + '" stroke-width="1"/>' + ticks +
     bars +
-    (S.showCoverage ? '<text x="' + X(0) + '" y="' + (stripY + stripH + (mobile ? 11 : 10)) + '" font-size="' + (mobile ? 10 : 9.5) +
+    (S.showCoverage ? '<text x="' + X(0) + '" y="' + keyBase + '" font-size="' + keyFs +
       '" fill="' + t.faint + '" font-family="Karla,sans-serif" letter-spacing=".06em">COMPANIES REPORTING</text>' : '') +
     gapKey +
     '<rect data-brush="body" x="' + x0 + '" y="' + (mobile ? 8 : 10) + '" width="' + Math.max(mobile ? 6 : 4, x1 - x0) + '" height="' + (mobile ? 88 : 82) + '" fill="transparent" pointer-events="all" cursor="grab"/>' +
@@ -1689,7 +1711,9 @@ function renderLoading() {
   $('#d-chart').innerHTML = '<div style="height:260px;color:var(--faint);font-size:13px;padding-top:40px">' + msg + '</div>';
   $('#d-detail').innerHTML = '<p style="font-size:12.5px;color:var(--muted);line-height:1.7">Hover a band, bar or ribbon to see what sits inside it. Click to pin it while you move the date window.</p>';
   $('#m-sub').textContent = S.err ? 'Load failed' : 'Loading…';
-  $('#m-timeline').innerHTML = '<div style="height:142px"></div>';
+  /* matches timelineSVG's own height on mobile (strip + one key row), so the card
+     does not jump when the chart replaces the placeholder */
+  $('#m-timeline').innerHTML = '<div style="height:153px"></div>';
   $('#m-p0').innerHTML = '<div style="height:220px;color:var(--faint);font-size:14px;padding-top:40px">' + msg + '</div>';
   $('#m-p1').innerHTML = '';
   $('#m-p2').innerHTML = '';
