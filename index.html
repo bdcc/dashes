@@ -4,7 +4,9 @@
   Two boards, fully static, data loads from this folder:
     · Roles Flow  — the sankey / flow diagram over a16z portfolio roles
     · Tiny World  — 3D cartogram: one island per job center
-  Each loads JSON by default; add ?data=sqlite for the demo.db (sql.js) path.
+  Each picks its data source itself: config.json's primary (R2) first, the
+  data.json shipped next to the page as the fallback. ?data=r2|github|sqlite
+  forces one (sqlite = demo.db through sql.js).
 -->
 <html lang="en">
 <head>

@@ -1,0 +1,15 @@
+# This repo is public (GitHub Pages). Never commit local config or credentials.
+.env
+.env.*
+*.env
+*.secrets
+secrets/
+*.key
+*.pem
+.wrangler/
+node_modules/
+
+# demo/demo.db is served from the R2 bucket (PUBLISH_DEMO_DB=r2) — the copy on
+# disk is only for local ?data=sqlite testing. Delete the line below to go back
+# to committing it.
+demo/demo.db

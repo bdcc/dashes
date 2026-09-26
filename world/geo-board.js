@@ -19,6 +19,10 @@ import { OrbitControls } from 'https://esm.sh/three@0.169.0/examples/jsm/control
 import { normalizeBoardData, fetchBoardData, CENTERS } from './geo-data.js';
 import { SECTOR_TERRAIN, makeSectorFeature, sectorTint } from './assets/sector-terrain.js';
 
+/** DB-derived strings (center labels, company names) go through this before
+ *  they land in innerHTML — the payload is generated data, not markup. */
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
 export const FUNCTION_COLORS = {
   engineering: '#fb5b60', product: '#1e83c4', design: '#fecd44', research: '#6a4f96',
   sales: '#8cc63e', marketing: '#f5893c', operations: '#33b0a6', other: '#54505c',
@@ -896,7 +900,7 @@ export function createGeoBoard({ mount, labelLayer, data, onSelect, theme = 'day
       el.style.background = on ? '#fb5b60' : night ? 'rgba(20,27,36,0.86)' : 'rgba(255,255,255,0.92)';
       el.style.color = on ? '#ffffff' : night ? '#eaf3fb' : '#0d0d0d';
       el.style.borderColor = on ? '#fb5b60' : night ? 'rgba(234,243,251,0.22)' : '#f2d9d2';
-      el.innerHTML = `<span style="font-family:Karla,sans-serif;font-weight:700;letter-spacing:0.01em">${it.is.label}</span>`
+      el.innerHTML = `<span style="font-family:Karla,sans-serif;font-weight:700;letter-spacing:0.01em">${esc(it.is.label)}</span>`
         + `<span style="font-family:Spectral,serif;font-weight:600;opacity:${on ? 1 : 0.55};margin-left:7px">${it.is.live ?? it.is.roles}</span>`
         + (it.is.precision === 'city' ? '' : `<span style="font-family:Karla,sans-serif;font-size:9px;opacity:0.5;margin-left:6px;letter-spacing:0.06em;text-transform:uppercase">${it.is.precision === 'policy' ? 'policy' : 'approx'}</span>`);
     });
@@ -940,7 +944,7 @@ export function createGeoBoard({ mount, labelLayer, data, onSelect, theme = 'day
       el.style.borderColor = isSel ? '#fb5b60' : night ? 'rgba(234,243,251,0.16)' : 'rgba(13,13,13,0.10)';
       const nm = vg.name.length > 16 ? vg.name.slice(0, 15) + '…' : vg.name;
       const d = sn.delta > 0 ? ' ▲' + sn.delta : sn.delta < 0 ? ' ▼' + Math.abs(sn.delta) : '';
-      el.innerHTML = `<span>${nm}</span><span style="opacity:0.62;margin-left:6px;font-family:Spectral,serif">${vg.live ?? vg.roles}</span>`
+      el.innerHTML = `<span>${esc(nm)}</span><span style="opacity:0.62;margin-left:6px;font-family:Spectral,serif">${vg.live ?? vg.roles}</span>`
         + (d ? `<span style="margin-left:5px;color:${isSel ? '#fff' : sn.delta > 0 ? '#5f9b1f' : '#fb5b60'}">${d}</span>` : '');
     });
   }

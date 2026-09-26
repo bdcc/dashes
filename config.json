@@ -1,0 +1,6 @@
+{
+  "data": {
+    "primary": "https://board-data.bdccdev.workers.dev",
+    "fallback": "data.json"
+  }
+}

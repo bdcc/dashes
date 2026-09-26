@@ -313,7 +313,7 @@ function anyFnStats() {
   });
   return { companies: coSet.size, centers: islSet.size };
 }
-const SRC = new URLSearchParams(location.search).get('data') === 'sqlite' ? 'sqlite' : 'json';
+const SRC = new URLSearchParams(location.search).get('data') || 'auto';
 const POLL_MS = 120000;
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));

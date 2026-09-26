@@ -1774,24 +1774,13 @@ function applyData(d) {
   try { S.showCoverage = localStorage.getItem('rolesFlow.cov') !== 'off'; } catch (err) {}
   renderAll();
 }
-function loadData(path, live) {
-  fetch(path).then(r => {
-    if (!r.ok) throw new Error('http ' + r.status);
-    return r.json();
-  }).then(d => { S.live = live; applyData(d); })
-    .catch(e => {
-      if (live) { loadData('./data.json', false); }
-      else { S.err = String(e.message || e); renderAll(); }
-    });
-}
 (function boot() {
-  const params = new URLSearchParams(location.search);
-  if (params.get('data') === 'sqlite') {   /* demo/demo.db via sql.js */
-    import('../loader.js').then((m) => m.loadBoardData('flow', 'sqlite')).then((d) => { S.live = false; applyData(d); })
-      .catch((e) => { S.err = String(e.message || e); renderAll(); });
-  } else {
-    loadData('./data.json', false);   /* static build: data.json ships next to this page */
-  }
+  /* loader.js picks the source: ?data=sqlite|r2|github, else auto
+     (primary from config.json, bundled data.json as the fallback). */
+  const mode = new URLSearchParams(location.search).get('data') || 'auto';
+  import('../loader.js').then((m) => m.loadBoardData('flow', mode))
+    .then((d) => { S.live = false; applyData(d); })
+    .catch((e) => { S.err = String(e.message || e); renderAll(); });
 })();
 
 /* ---------- theme switchers ---------- */
