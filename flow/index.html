@@ -383,6 +383,10 @@
         <p class="hint">Drag the shaded window, or its edges, to set the two dates being compared below.</p>
         <div id="d-timeline"></div>
         <div class="range" id="d-range"></div>
+        <div class="row" style="justify-content:flex-start;padding-top:8px">
+          <span class="eyebrow">Crawl coverage</span>
+          <div class="seg" id="d-covseg"></div>
+        </div>
       </section>
 
       <section>
@@ -439,6 +443,10 @@
       <div class="hscroll" id="m-presets" style="padding:8px 0 10px"></div>
       <div id="m-timeline"></div>
       <div class="range" id="m-range"></div>
+      <div class="byrow">
+        <span class="eyebrow" style="font-size:10px">Crawl coverage</span>
+        <div class="hscroll mtabs" id="m-covseg"></div>
+      </div>
       <div class="byrow">
         <span class="eyebrow" style="font-size:10px">Break down by</span>
         <div class="hscroll mtabs" id="m-tabs"></div>
@@ -624,19 +632,37 @@ const S = {
   othersOpen: false, // companies mode: unfold the "N others" band into the full column
   dayHover: true, dayClick: true,   // prefs: day stats on hover / day card on click
   hoverDate: null, dayCard: null,   // date index under the cursor / opened in the card
+  metric: 'observed',  // 'observed' (what the crawl saw) | 'posted' (fresh postings, 14d)
+  showCoverage: true,  // crawl-coverage layer: hatched partial days + companies-reporting strip
   w: 700, wm: 358, panel: 0, dragX: 0, swiping: false, panelHs: [0, 0, 0],
   filtersOpen: false,
   coDrop: null, coQ: ''   // pair mode: which company dropdown is open (0|1|null) + its search text
 };
 
 /* ---------- data accessors ---------- */
-function asOf(c, date) { let v = 0; for (const h of c.history) { if (h.date <= date) v = h.total_jobs; else break; } return v; }
+/* Observed = what the crawl saw on a date (carried forward: a day the board was
+   not read shows the last count it did see). Posted = how many roles were first
+   posted in the 14 days before the date — the churn behind the level. */
+const isPosted = () => S.metric === 'posted';
+function obsAsOf(c, date) { let v = 0; for (const h of c.history) { if (h.date <= date) v = h.total_jobs; else break; } return v; }
+/* Exact-date only, never carried: the payload omits dates before the company's
+   first posting and marks partial-crawl days, so "no reading" stays NULL rather
+   than becoming a zero nobody crawled. */
+function postedAsOf(c, date) {
+  const p = c.posted;
+  if (!p) return null;
+  for (const e of p) { if (e.date === date) return e.n; if (e.date > date) break; }
+  return null;
+}
+function asOf(c, date) { return isPosted() ? (postedAsOf(c, date) || 0) : obsAsOf(c, date); }
 function fnAsOf(c, date, fn) { let v = 0; for (const h of c.history) { if (h.date > date) break; v = (h.jobs_by_fn && h.jobs_by_fn[fn]) || 0; } return v; }
-/* Dates this company's own board was not read at all (the payload marks rows it
-   had to carry forward). The count on show those days is the last one the crawl
-   actually saw, so the ridge hatches the slice instead of drawing a trough. */
+/* Dates this series has no honest reading for — the crawl came back short, or
+   (posted) the company's postings start later. The count on show those days is
+   the last one actually seen, so the ridge hatches the slice instead of drawing
+   a trough. */
 function gapIdx(c) {
-  const g = (c.history || []).filter(h => h.gap).map(h => h.date);
+  const src = isPosted() ? (c.posted || []) : (c.history || []);
+  const g = src.filter(h => h.gap).map(h => h.date);
   if (!g.length) return [];
   return S.data.dates.map((dt, i) => g.indexOf(dt) >= 0 ? i : -1).filter(i => i >= 0);
 }
@@ -668,7 +694,9 @@ function scope() {
   if (S.picked.length) list = list.filter(c => S.picked.includes(c.company));
   return list;
 }
-const byFunction = () => S.compare !== 'co';
+/* posted series are company-level only (monitor_roles carries no function), so
+   the posted metric always charts companies — never a role-type breakdown */
+const byFunction = () => !isPosted() && S.compare !== 'co';
 function filterCount() {
   const f = S.facets;
   return f.cohort.length + f.sector.length + f.work.length + f.city.length + f.source.length + S.picked.length;
@@ -683,7 +711,7 @@ const CO_CAP = 25;
 function series() {
   const d = S.data, dates = d.dates, t = RolesFlowTheme.theme(), sc = scope();
   let rows;
-  if (S.compare === 'pair') {
+  if (S.compare === 'pair' && !isPosted()) {
     /* function × company bands, colored by company — 16 rows for two picks */
     rows = sc.map((c, i) => FUNCTIONS.map(fn => ({ id: c.company + '|' + fn, label: fn + ' · ' + c.company,
       color: i === 0 ? t.pairA : t.pairB,
@@ -767,12 +795,18 @@ function dateStats(i) {
   /* the crawl's own footprint for this scan: a date the board only partly
      answered reads low here for a reason the totals cannot show */
   const cov = (d.coverage || {})[dt] || null;
+  const posted = isPosted();
+  const from = d.posted_from || null;
   return {
     i: i, date: dt, prev: prev, first: i === 0,
+    posted: posted, postedFrom: from,
+    /* before the first posting date on record there is nothing to read, which
+       is not the same as "no roles were posted" */
+    noPosted: posted && !!from && dt < from,
     total: total, delta: delta,
     cov: cov, gap: !!(cov && cov.gap),
     color: delta > 0 ? t.up : delta < 0 ? t.down : t.muted,
-    fns: FUNCTIONS.map(fn => ({ fn: fn, n: sc.reduce((s, c) => s + fnAsOf(c, dt, fn), 0) }))
+    fns: posted ? [] : FUNCTIONS.map(fn => ({ fn: fn, n: sc.reduce((s, c) => s + fnAsOf(c, dt, fn), 0) }))
       .filter(x => x.n > 0).sort((p, q) => q.n - p.n),
     movers: companies.filter(c => c.n !== c.was)
       .map(c => ({ label: c.label, delta: c.n - c.was, color: c.n - c.was > 0 ? t.up : t.down }))
@@ -803,18 +837,25 @@ function dateTipHTML(i) {
   const s = dateStats(i);
   if (!s) return '';
   const max = Math.max(1, ...s.fns.map(f => f.n));
+  const tot = s.noPosted ? '—' : s.total;
   const moved = s.first
     ? '<span style="color:var(--faint)">first scan — nothing before it</span>'
-    : '<span style="color:' + s.color + ';font-weight:600">' + signed(s.delta) + '</span> vs ' + fmtDate(s.prev);
+    : s.noPosted
+      ? '<span style="color:var(--faint)">nothing on record before ' + fmtDate(s.postedFrom) + '</span>'
+      : '<span style="color:' + s.color + ';font-weight:600">' + signed(s.delta) + '</span> vs ' + fmtDate(s.prev);
   const mv = s.movers.length
     ? s.movers.slice(0, 3).map(m => '<span style="color:' + m.color + '">' + esc(trunc(m.label, 18)) + ' ' + signed(m.delta) + '</span>').join('')
     : '<span style="color:var(--faint)">no company moved vs ' + fmtDate(s.prev) + '</span>';
   return '<div class="dtip-head"><span class="dtip-date">' + fmtDate(s.date) + '</span>' +
-    '<span class="dtip-tot">' + s.total + '</span></div>' +
-    '<div class="dtip-sub">roles · ' + moved + '</div>' + gapNote(s) +
-    '<div class="dtip-rows">' + s.fns.slice(0, 6).map(f =>
-      '<div class="dtip-row"><span class="bar" style="width:' + Math.round(f.n / max * 100) + '%"></span>' +
-      '<span class="name">' + f.fn + '</span><span class="n">' + f.n + '</span></div>').join('') + '</div>' +
+    '<span class="dtip-tot">' + tot + '</span></div>' +
+    '<div class="dtip-sub">' + (s.posted ? 'fresh postings (14d) · ' : 'roles · ') + moved + '</div>' + gapNote(s) +
+    (s.noPosted
+      ? '<div class="dtip-rows"><span style="color:var(--faint);font-size:11.5px">no posted data before ' + fmtDate(s.postedFrom) + '</span></div>'
+      : s.posted
+        ? '<div class="dtip-rows"><span style="color:var(--faint);font-size:11.5px">posted dates carry no role-type split</span></div>'
+        : '<div class="dtip-rows">' + s.fns.slice(0, 6).map(f =>
+            '<div class="dtip-row"><span class="bar" style="width:' + Math.round(f.n / max * 100) + '%"></span>' +
+            '<span class="name">' + f.fn + '</span><span class="n">' + f.n + '</span></div>').join('') + '</div>') +
     '<div class="dtip-mv">' + mv + '</div>';
 }
 function dayCardHTML(i) {
@@ -822,19 +863,26 @@ function dayCardHTML(i) {
   if (!s) return '';
   const top = s.companies.slice(0, 12);
   const max = Math.max(1, ...top.map(c => c.n));
-  return '<div class="ctitle"><span class="name">' + fmtDate(s.date) + ' · ' + s.total + ' roles</span>' +
+  const what = s.posted ? 'fresh postings' : 'roles';
+  const lead = s.noPosted
+    ? '<p class="cnote">No posted data before ' + fmtDate(s.postedFrom) + ' — postings only carry dates from then on.</p>'
+    : '';
+  return '<div class="ctitle"><span class="name">' + fmtDate(s.date) + ' · ' + (s.noPosted ? '—' : s.total) + ' ' + what + '</span>' +
     '<button type="button" class="close-pill" data-dayclose="1">Close</button></div>' +
-    '<div class="cfig"><span class="v">' + s.total + '</span><span class="lab">roles that day</span>' +
-    '<span class="delta" style="color:' + s.color + '">' + (s.first ? '—' : signed(s.delta)) + '</span></div>' +
-    '<div class="ceyebrow">' + (s.first ? 'First scan in the series' : 'Change since ' + fmtDate(s.prev)) + '</div>' +
-    gapNote(s, 'cgap') +
+    '<div class="cfig"><span class="v">' + (s.noPosted ? '—' : s.total) + '</span><span class="lab">' + what + ' that day</span>' +
+    '<span class="delta" style="color:' + s.color + '">' + (s.first || s.noPosted ? '—' : signed(s.delta)) + '</span></div>' +
+    '<div class="ceyebrow">' + (s.first ? 'First scan in the series'
+      : s.noPosted ? 'Before the first posted date on record'
+      : 'Change since ' + fmtDate(s.prev)) + '</div>' +
+    gapNote(s, 'cgap') + lead +
     (top.length
       ? '<div class="crows">' + top.map(c =>
           '<div class="crow"><span class="bar" style="width:' + Math.round(c.n / max * 100) + '%"></span>' +
           '<span class="name">' + esc(c.label) + '</span><span class="cnt">' + c.n + '</span></div>').join('') + '</div>'
-      : '<p class="cnote">No companies in scope had roles on ' + fmtDate(s.date) + '.</p>') +
-    '<p class="cnote">Top ' + top.length + ' of ' + s.companies.length + ' companies with roles on ' + fmtDate(s.date) +
-    ', ' + s.fns.length + ' role types. Counts are that single scan — the comparison window above is untouched.</p>';
+      : '<p class="cnote">No companies in scope had ' + what + ' on ' + fmtDate(s.date) + '.</p>') +
+    '<p class="cnote">Top ' + top.length + ' of ' + s.companies.length + ' companies with ' + what + ' on ' + fmtDate(s.date) +
+    (s.posted ? ', first posted in the 14 days before it' : ', ' + s.fns.length + ' role types') +
+    '. Counts are that single scan — the comparison window above is untouched.</p>';
 }
 function toggleDayCard(i) {
   S.dayCard = S.dayCard === i ? null : i;
@@ -929,10 +977,14 @@ function timelineSVG(mobile) {
   const covRows = dates.map(dt => (cov[dt] && cov[dt].rows) || 0);
   const covMax = (i, win) => Math.max(1, ...covRows.slice(Math.max(0, i - win), i + win + 1));
   const hatchId = 'gaphatch-' + (mobile ? 'm' : 'd');
-  const p = part.map(dt => dates.indexOf(dt)).filter(i => i >= 0);
+  const p = S.showCoverage ? part.map(dt => dates.indexOf(dt)).filter(i => i >= 0) : [];
   let gaps = '', gapKey = '';
   if (p.length) {
-    gaps = '<defs><pattern id="' + hatchId + '" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">' +
+    /* the wash first: a partial day reads dimmer than the ones around it, so the
+       shape of the line stops carrying a claim the data cannot make */
+    gaps += p.map(i => '<rect x="' + (X(i) - pitch / 2) + '" y="' + (mobile ? 6 : 8) + '" width="' + pitch +
+        '" height="' + (axisY - (mobile ? 6 : 8)) + '" fill="' + t.paper + '" fill-opacity=".34"/>').join('') +
+      '<defs><pattern id="' + hatchId + '" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">' +
       '<line x1="0" y1="0" x2="0" y2="6" stroke="' + t.faint + '" stroke-width="1.2" stroke-opacity=".6"/></pattern></defs>' +
       p.map(i => '<rect x="' + (X(i) - pitch / 2) + '" y="' + (mobile ? 6 : 8) + '" width="' + pitch +
         '" height="' + (axisY - (mobile ? 6 : 8)) + '" fill="url(#' + hatchId + ')"/>').join('') +
@@ -945,21 +997,21 @@ function timelineSVG(mobile) {
       '<text x="' + ky + '" y="' + (stripY + stripH + (mobile ? 11 : 10)) + '" text-anchor="end" font-size="' + (mobile ? 10 : 9.5) +
       '" fill="' + t.faint + '" font-family="Karla,sans-serif" letter-spacing=".06em">PARTIAL CRAWL</text>';
   }
-  const bars = covRows.map((rows, i) => {
+  const bars = S.showCoverage ? covRows.map((rows, i) => {
     if (!rows) return '';
     const h = Math.max(1.5, Math.min(1, rows / covMax(i, 6)) * stripH);
     return '<rect data-date="' + i + '" x="' + (X(i) - pitch / 2) + '" y="' + (stripY + stripH - h) +
       '" width="' + Math.max(1, pitch - 1) + '" height="' + h + '" fill="' +
       (part.indexOf(dates[i]) >= 0 ? t.accent : t.rule) + '" pointer-events="all" style="cursor:crosshair"/>';
-  }).join('');
+  }).join('') : '';
 
   return '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" style="display:block;touch-action:none">' +
     grid + area + gaps +
     '<polyline points="' + line + '" fill="none" stroke="' + t.muted + '" stroke-width="' + (mobile ? 1.6 : 1.4) + '" stroke-linejoin="round"/>' +
     '<line x1="' + X(0) + '" y1="' + axisY + '" x2="' + (X(0) + plot) + '" y2="' + axisY + '" stroke="' + t.axis + '" stroke-width="1"/>' + ticks +
     bars +
-    '<text x="' + X(0) + '" y="' + (stripY + stripH + (mobile ? 11 : 10)) + '" font-size="' + (mobile ? 10 : 9.5) +
-    '" fill="' + t.faint + '" font-family="Karla,sans-serif" letter-spacing=".06em">COMPANIES REPORTING</text>' +
+    (S.showCoverage ? '<text x="' + X(0) + '" y="' + (stripY + stripH + (mobile ? 11 : 10)) + '" font-size="' + (mobile ? 10 : 9.5) +
+      '" fill="' + t.faint + '" font-family="Karla,sans-serif" letter-spacing=".06em">COMPANIES REPORTING</text>' : '') +
     gapKey +
     '<rect data-brush="body" x="' + x0 + '" y="' + (mobile ? 8 : 10) + '" width="' + Math.max(mobile ? 6 : 4, x1 - x0) + '" height="' + (mobile ? 88 : 82) + '" fill="transparent" pointer-events="all" cursor="grab"/>' +
     dot(x0, vals[S.from]) + dot(x1, vals[S.to]) +
@@ -1374,19 +1426,32 @@ function renderAll() {
   /* ---- timeline + range ---- */
   $('#d-timeline').innerHTML = timelineSVG(false);
   $('#m-timeline').innerHTML = timelineSVG(true);
+  /* the coverage layer is a reading aid, not part of the series: hatched days and
+     the companies-reporting strip can be turned off (the per-company ridge
+     hatches stay — those are the detail cards' own honesty marks) */
+  const covSeg = '<button type="button" data-cov="1"' + (S.showCoverage ? ' class="on"' : '') + '>Show</button>' +
+    '<button type="button" data-cov="0"' + (S.showCoverage ? '' : ' class="on"') + '>Hide</button>';
+  $('#d-covseg').innerHTML = covSeg;
+  $('#m-covseg').innerHTML = covSeg;
   const range = '<div class="fig">' + fmtDate(a) + ' → ' + fmtDate(b) + '</div>' +
-    '<div class="sub num">' + days + ' days · ' + t0 + ' → ' + t1 + (isMobile() ? ' roles' : ' open roles') + ' · <span style="color:' + (net > 0 ? t.up : net < 0 ? t.down : t.muted) + ';font-weight:600">' + signed(net) + '</span></div>';
+    '<div class="sub num">' + days + ' days · ' + t0 + ' → ' + t1 +
+    (isPosted() ? ' fresh postings (14d)' : (isMobile() ? ' roles' : ' open roles')) +
+    ' · <span style="color:' + (net > 0 ? t.up : net < 0 ? t.down : t.muted) + ';font-weight:600">' + signed(net) + '</span></div>';
   $('#d-range').innerHTML = range;
   $('#m-range').innerHTML = range;
 
   /* ---- compare tabs + picker ---- */
+  const metricBtns = () =>
+    '<button type="button" data-metric="observed"' + (isPosted() ? '' : ' class="on"') + '>Observed</button>' +
+    '<button type="button" data-metric="posted"' + (isPosted() ? ' class="on"' : '') + '>Posted 14d</button>';
   const tabDef = isMobile()
     ? [['fn', 'All companies'], ['one', 'One company'], ['co', 'By company'], ['pair', 'Two companies']]
     : [['fn', 'Role types · all companies'], ['one', 'Role types · one company'], ['co', 'Companies'], ['pair', 'Two companies']];
   const tabs = tabDef.map(([k, label]) =>
     '<button type="button" data-tab="' + k + '" class="' + (isMobile() ? 'preset' : '') + (S.compare === k ? ' on' : '') + '">' + label + '</button>').join('');
   $('#d-tabs').innerHTML = tabs;
-  $('#m-tabs').innerHTML = tabs;
+  /* mobile has no chart-switch row: the metric pair rides the break-down tabs */
+  $('#m-tabs').innerHTML = tabs + metricBtns();
 
   const opts = d.companies.slice().sort((p, r) => r.total_jobs - p.total_jobs)
     .map(c => '<option value="' + esc(c.company) + '">' + esc(c.company) + '  ·  ' + c.total_jobs + (isMobile() ? ' roles' : '') + '</option>').join('');
@@ -1405,14 +1470,17 @@ function renderAll() {
 
   /* ---- chart switch + headings ---- */
   const ridge = S.chart === 'ridge';
-  const heads = {
-    fn: ridge ? 'Role types over time, all companies in scope' : 'What changed by role type',
-    one: ridge ? 'Role types over time at ' + (S.focusCo || '—') : 'What changed at ' + (S.focusCo || '—'),
-    co: ridge ? 'Companies over time' : 'What changed by company',
-    pair: ridge ? 'Role types over time at the two companies you picked' : 'What changed by role type, two companies'
-  };
+  const heads = isPosted()
+    ? { fn: 'Fresh postings by company', one: 'Fresh postings at ' + (S.focusCo || '—'),
+        co: 'Fresh postings by company', pair: 'Fresh postings at the two companies you picked' }
+    : {
+      fn: ridge ? 'Role types over time, all companies in scope' : 'What changed by role type',
+      one: ridge ? 'Role types over time at ' + (S.focusCo || '—') : 'What changed at ' + (S.focusCo || '—'),
+      co: ridge ? 'Companies over time' : 'What changed by company',
+      pair: ridge ? 'Role types over time at the two companies you picked' : 'What changed by role type, two companies'
+    };
   $('#d-chart-head').textContent = heads[S.compare];
-  $('#d-chart-switch').innerHTML =
+  $('#d-chart-switch').innerHTML = metricBtns() +
     '<button type="button" data-chart="flow"' + (ridge ? '' : ' class="on"') + '>Flow</button>' +
     '<button type="button" data-chart="ridge"' + (ridge ? ' class="on"' : '') + '>Ridgeline</button>' +
     foldBtn(hasOthers, false, sc.length);
@@ -1431,7 +1499,12 @@ function renderAll() {
         : (S.dayHover ? 'Hover the timeline for one scan' : 'The timeline marks each scan'))
       + (S.dayClick ? '; click a date to open its card.' : '.')
     : '';
-  $('#d-hint').textContent = (S.compare === 'pair'
+  const postedHint = 'Fresh postings — roles first posted in the 14 days before each scan, the churn behind the level. '
+    + 'Company level only (the board keeps no posting dates per role type), and it starts '
+    + (d.posted_from ? fmtDate(d.posted_from) : 'later') + ': earlier dates have no posted reading at all. ';
+  $('#d-hint').textContent = (isPosted()
+    ? postedHint
+    : S.compare === 'pair'
     ? 'One band per role type per company, colored by company. Bands share a common vertical scale, so the two companies\' mixes are directly comparable.'
     : S.compare === 'co'
       ? coHint + (ridge
@@ -1670,6 +1743,11 @@ function applyData(d) {
     const ds = JSON.parse(localStorage.getItem('rolesFlow.dayStats'));
     if (ds && typeof ds === 'object') { S.dayHover = ds.hover !== false; S.dayClick = ds.click !== false; }
   } catch (err) {}
+  try {
+    const m = localStorage.getItem('rolesFlow.metric');
+    if (m === 'posted' || m === 'observed') S.metric = m;
+  } catch (err) {}
+  try { S.showCoverage = localStorage.getItem('rolesFlow.cov') !== 'off'; } catch (err) {}
   renderAll();
 }
 function loadData(path, live) {
@@ -1733,18 +1811,41 @@ function pickTab(compare) {
   }
   renderAll();
 }
+function setMetric(m) {
+  if (m !== 'posted' && m !== 'observed') return;
+  S.metric = m;
+  /* posted series are company-level: a function breakdown or a role-type heading
+     would be describing data that does not exist */
+  if (m === 'posted' && S.compare === 'fn') S.compare = 'co';
+  S.pin = null; S.hover = null; S.dayCard = null; hideDateTip();
+  try { localStorage.setItem('rolesFlow.metric', m); } catch (err) {}
+  renderAll();
+}
+function setCoverage(on) {
+  S.showCoverage = !!on;
+  try { localStorage.setItem('rolesFlow.cov', on ? 'on' : 'off'); } catch (err) {}
+  renderAll();
+}
+['#d-covseg', '#m-covseg'].forEach(sel => $(sel).addEventListener('click', e => {
+  const b = e.target.closest('[data-cov]');
+  if (b) setCoverage(b.dataset.cov === '1');
+}));
 $('#d-tabs').addEventListener('click', e => {
   const b = e.target.closest('[data-tab]');
   if (b) pickTab(b.dataset.tab);
 });
 $('#m-tabs').addEventListener('click', e => {
-  const b = e.target.closest('[data-tab]');
-  if (b) pickTab(b.dataset.tab);
+  const b = e.target.closest('[data-metric]');
+  if (b) { setMetric(b.dataset.metric); return; }
+  const t = e.target.closest('[data-tab]');
+  if (t) pickTab(t.dataset.tab);
 });
 $('#d-picker').addEventListener('change', e => { S.focusCo = e.target.value; S.pin = null; S.hover = null; renderAll(); });
 $('#m-picker').addEventListener('change', e => { S.focusCo = e.target.value; S.pin = null; renderAll(); });
 $('#d-chart-switch').addEventListener('click', e => {
   if (e.target.closest('[data-others]')) { toggleOthers(); return; }
+  const mb = e.target.closest('[data-metric]');
+  if (mb) { setMetric(mb.dataset.metric); return; }
   const b = e.target.closest('[data-chart]');
   if (!b) return;
   S.chart = b.dataset.chart; S.pin = null; S.hover = null; renderAll();
