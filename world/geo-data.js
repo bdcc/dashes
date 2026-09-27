@@ -423,7 +423,6 @@ export const LOCATION_ALIASES = {
     'georgia; illinois; new york; texas; washington, d.c.': 'nyc',
     'georgia; massachusetts; new york; north carolina': 'nyc',
     'germany': 'germany',
-    'ghent-belgium': 'belgium',
     'gothenburg, stockholm': 'stockholm',
     'gothenburg, sweden, stockholm, sweden': 'stockholm',
     'graz, austria': 'austria',
