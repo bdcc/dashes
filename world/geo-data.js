@@ -30,6 +30,8 @@ export const CENTERS = {
   korea:     { label: 'South Korea',            lat: 36.50, lng:  127.90, precision: 'country' },
   japan:     { label: 'Japan',                  lat: 36.20, lng:  138.25, precision: 'country' },
   usa:       { label: 'United States',          lat: 41.50, lng:  -95.00, precision: 'region' },
+  latam:     { label: 'Latin America',          lat: -15.00, lng: -60.00, precision: 'region' },
+  asia:      { label: 'Asia',                   lat: 34.00, lng: 100.00, precision: 'region' },
   remote:    { label: 'Remote',                 lat: 31.00, lng: -151.00, precision: 'policy', water: true },
   'us-remote': { label: 'US / Canada remote',   lat: 33.50, lng: -104.00, precision: 'policy', water: true },
     // LUMA-GENERATED-CENTERS-START
@@ -168,6 +170,10 @@ export const LOCATION_ALIASES = {
   'united states-remote': 'us-remote',
   'us-remote': 'us-remote',
   'us/canada': 'us-remote',
+  // Region-only postings (ADDI/Hilbert "LatAm", Solana Foundation "Asia").
+  'latam': 'latam',
+  'latin america': 'latam',
+  'asia': 'asia',
   // Short/ambiguous strings the token matcher cannot place on its own. Kept
   // curated (outside the generated block) so a regen never rewrites them.
   'la': 'la',
