@@ -305,6 +305,7 @@ export const LOCATION_ALIASES = {
     'boston, ma; new york city, ny; san francisco, ca; seattle, wa': 'boston',
     'boston, ma; remote-friendly | san francisco, ca | seattle, wa | new york city, ny; washington, dc': 'boston',
     'boston, ma; san francisco, ca | new york city, ny; seattle, wa; washington, dc': 'boston',
+    'boston, ma; san francisco, ca | seattle, wa | new york city, ny | washington, dc': 'boston',
     'boston, massachusetts': 'boston',
     'boston, massachusetts; delaware; maryland; remote - california; remote - new york; remote - washington d.c.; virginia; west virginia': 'boston',
     'boulder, co': 'denver',
