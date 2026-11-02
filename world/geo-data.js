@@ -555,6 +555,7 @@ export const LOCATION_ALIASES = {
     'massachusetts - boston': 'boston',
     'mclean, virginia': 'washington-dc',
     'mclean, virginia; washington, d.c.': 'washington-dc',
+    'melbourne': 'melbourne',
     'melbourne, australia': 'melbourne',
     'melbourne, australia; queensland, australia': 'melbourne',
     'melbourne, australia; sydney, australia': 'melbourne',
